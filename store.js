@@ -56,6 +56,7 @@ window.Store = (function () {
         rate: s.rate != null ? +s.rate : seed.settings.rate,
         igv: { on: !!s.igv_on, rate: s.igv_rate != null ? +s.igv_rate : 0.18 },
         meta: s.meta != null ? +s.meta : seed.settings.meta,
+        accounts: s.accounts || seed.settings.accounts,
         inflow: seed.settings.inflow,   // flujo histórico ilustrativo (agregación real: pendiente)
         outflow: seed.settings.outflow,
       },
@@ -89,6 +90,7 @@ window.Store = (function () {
     if (partial.rate != null) up.rate = partial.rate;
     if (partial.igv != null) { up.igv_on = partial.igv.on; up.igv_rate = partial.igv.rate; }
     if (partial.meta != null) up.meta = partial.meta;
+    if (partial.accounts != null) up.accounts = partial.accounts;
     const { error } = await sb.from('settings').upsert(up);
     if (error) throw new Error(error.message);
   }

@@ -267,6 +267,14 @@ button{font-family:inherit; cursor:pointer; border:none; background:none; color:
   font-size:12.5px;color:var(--txt-2);margin-bottom:18px;background:var(--surface)}
 .email-pill .g{width:8px;height:8px;border-radius:50%;background:var(--pos)}
 
+/* cuentas */
+.acc-total{font-size:36px;letter-spacing:-.01em;margin-bottom:4px}
+.acc-list{margin-top:14px;border-top:1px solid var(--line);padding-top:6px}
+.acc-row{display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--line)}
+.acc-row:last-child{border-bottom:none}
+.acc-l{display:flex;align-items:center;gap:11px;font-size:14px;color:var(--txt-2)}
+.acc-v{font-size:16px;font-variant-numeric:tabular-nums}
+.acc-note{font-size:11px;color:var(--txt-3);margin-top:12px;letter-spacing:.02em}
 /* avisos de cobros */
 .alerts{margin-bottom:22px}
 .alert{display:flex;align-items:center;gap:13px;padding:14px 15px;border-radius:var(--r);margin-bottom:9px;
@@ -441,6 +449,9 @@ const dispNum = usd => conv(Math.abs(usd)).toLocaleString('en-US');
 const fmt  = usd => (usd<0?'-':'') + symG() + dispNum(usd);
 function fmtK(usd){ const v=conv(usd), a=Math.abs(v);
   return (v<0?'-':'') + symG() + (a>=1000 ? (a/1000).toFixed(a%1000?1:0)+'k' : a); }
+// con centavos (para saldos de cuenta)
+function fmt2(usd){ const v=state.display==='USD'?usd:usd*state.rate;
+  return symG() + v.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 
 const state = {
   user:'Nicolás', uav:'N', uid:'N',
@@ -455,6 +466,8 @@ const state = {
   cajaReserva:0, // queda en caja del estudio (se calcula)
   todayDay:15, // 15 jun 2026
   igv:{on:false, rate:0.18}, // se activa cuando facturen formal
+  // Saldo real por cuenta de banco (USD). No se edita a mano: cambia con cada movimiento.
+  accounts:{'Nicolás':1722.24, 'Franco':1589.58, 'Empresa':0},
   // Cobros recurrentes (suscripciones) — avisan 3 días y 1 día antes
   recurring:[
     {nm:'Octane Render', amt:20, cur:'USD', day:16, ic:'◇'},
@@ -493,7 +506,7 @@ const state = {
 function SEED(){ return JSON.parse(JSON.stringify({
   projects:state.projects, tx:state.tx, team:state.team, recurring:state.recurring,
   settings:{ display:state.display, rate:state.rate, igv:state.igv, meta:state.metaMensual,
-             inflow:state.inflow, outflow:state.outflow }
+             inflow:state.inflow, outflow:state.outflow, accounts:state.accounts }
 })); }
 function applyData(d){
   if(!d) return;
@@ -508,6 +521,7 @@ function applyData(d){
     if(s.meta!=null) state.metaMensual=s.meta;
     if(s.inflow) state.inflow=s.inflow;
     if(s.outflow) state.outflow=s.outflow;
+    if(s.accounts) state.accounts=s.accounts;
   }
 }
 
@@ -572,6 +586,8 @@ function render(){
       <div class="cell"><div class="t"><span class="dot" style="background:var(--neg)"></span>Gastos</div>
         <div class="v serif">${fmt(t.exp)}</div><div class="s">4 movimientos</div></div>
     </div>
+
+    ${accountsHTML()}
 
     <div class="card">
       <div class="ch"><div class="ct">Flujo · últimos 6 meses</div><div class="cs">Ingreso vs. gasto</div></div>
@@ -689,6 +705,22 @@ function render(){
   setTimeout(animateBars,80);
 }
 
+function accountsHTML(){
+  const acc=state.accounts||{};
+  const av={'Nicolás':'N','Franco':'F','Empresa':'V'};
+  const keys=Object.keys(acc).filter(k=>acc[k]!==0 || k==='Nicolás' || k==='Franco');
+  const combined=keys.reduce((a,k)=>a+acc[k],0);
+  return `<div class="card acc-card">
+    <div class="ch"><div class="ct">En las cuentas</div><div class="cs">saldo combinado</div></div>
+    <div class="acc-total serif">${fmt2(combined)}</div>
+    <div class="acc-list">
+      ${keys.map(k=>`<div class="acc-row">
+        <div class="acc-l"><span class="av-x">${av[k]||k[0]}</span>${k}</div>
+        <div class="acc-v serif">${fmt2(acc[k])}</div></div>`).join('')}
+    </div>
+    <div class="acc-note">Se actualiza solo con cada movimiento · no se edita a mano</div>
+  </div>`;
+}
 function daysUntil(day){ const d=day-state.todayDay; return d>=0 ? d : d+30; }
 function whenLabel(n){ return n===0?'Hoy':n===1?'Mañana':`En ${n} días`; }
 function remindersHTML(){
@@ -838,7 +870,12 @@ async function saveTx(){
     const saved=await Store.addTx(row);
     state.tx.unshift(saved);
     if(txType==='in'){ if(!pend) state.inflow[5]+=usd; } else state.outflow[5]+=usd;
+    if(state.accounts[cuenta]!=null){
+      if(txType==='out') state.accounts[cuenta]-=usd;
+      else if(!pend) state.accounts[cuenta]+=usd;
+    }
     await Store.persistLocal(SEED());
+    Store.saveSettings({accounts:state.accounts}).catch(()=>{});
   }catch(e){ btn.textContent=lbl; alert('No se pudo guardar: '+e.message); return; }
   btn.textContent=lbl;
   document.getElementById('fAmt').value='';document.getElementById('fDesc').value='';

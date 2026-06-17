@@ -58,6 +58,7 @@ create table if not exists settings (
   igv_on   boolean default false,
   igv_rate numeric default 0.18,
   meta     numeric default 9000,
+  accounts jsonb   default '{"Nicolás":0,"Franco":0,"Empresa":0}',  -- saldo por cuenta de banco (USD)
   constraint settings_singleton check (id = 1)
 );
 
@@ -88,7 +89,9 @@ alter publication supabase_realtime add table recurring;
 alter publication supabase_realtime add table settings;
 
 -- ── Datos iniciales ──────────────────────────────────────────────
-insert into settings (id) values (1) on conflict (id) do nothing;
+insert into settings (id, accounts) values
+  (1, '{"Nicolás":1722.24,"Franco":1589.58,"Empresa":0}')
+  on conflict (id) do nothing;
 
 insert into projects (nm, cl, total, cobrado, status) values
   ('Torre Miraflores',  'Estudio Arqué',      8000, 4000, 'En curso'),
