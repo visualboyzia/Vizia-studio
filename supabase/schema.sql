@@ -93,27 +93,8 @@ insert into settings (id, accounts) values
   (1, '{"Nicolás":1722.24,"Franco":1589.58,"Empresa":0}')
   on conflict (id) do nothing;
 
-insert into projects (nm, cl, total, cobrado, status) values
-  ('Torre Miraflores',  'Estudio Arqué',      8000, 4000, 'En curso'),
-  ('Casa Las Lomas',    'Bauen Arquitectos',  5200, 5200, 'Entregado'),
-  ('Lobby Hotel Costa', 'Mirador SAC',        6500, 1950, 'En curso'),
-  ('Máster Plan Surco', 'Estudio Arqué',      9800,    0, 'Propuesta');
-
+-- Solo los 2 socios (datos reales). Proyectos, movimientos y suscripciones
+-- arrancan vacíos: se agregan desde la app.
 insert into team (nm, role, type, share, pay, av) values
-  ('Nicolás',          'Socio · Dirección',  'socio',     0.20,    0, 'N'),
-  ('Franco Otiniano',  'Socio · Producción', 'socio',     0.20,    0, 'F'),
-  ('Render freelance', '3D / Render',        'freelance', 0,    1200, 'R');
-
-insert into recurring (nm, amt, cur, day, ic) values
-  ('Octane Render',          20, 'USD', 16, '◇'),
-  ('Chaos V-Ray',            45, 'USD', 18, '◇'),
-  ('Render farm (créditos)',120, 'USD', 14, '☁'),
-  ('Adobe Creative Cloud',   55, 'USD',  5, '◆');
-
-insert into transactions (t, amt, cur, orig_amt, descr, proj, paid_from, status, ic, date) values
-  ('in', 1950, 'USD', 1950, 'Adelanto 30% — Lobby Hotel Costa', 'Mirador SAC',       'Empresa',  'pendiente',  '◐', '2026-06-12'),
-  ('out',-1200,'PEN', 4500, 'Freelance modelado 3D',            'Operación',         'Franco',   'confirmado', '◇', '2026-06-11'),
-  ('in', 4000, 'USD', 4000, 'Adelanto 50% — Torre Miraflores',  'Estudio Arqué',     'Empresa',  'confirmado', '◑', '2026-06-08'),
-  ('out',-180, 'USD',  180, 'Adobe + Chaos (render)',           'Software / Render', 'Nicolás',  'confirmado', '◇', '2026-06-05'),
-  ('out',-540, 'PEN', 2025, 'Disco SSD + RAM workstation',      'Equipos',           'Nicolás',  'confirmado', '▢', '2026-06-03'),
-  ('in', 5200, 'USD', 5200, 'Pago final — Casa Las Lomas',      'Bauen Arquitectos', 'Empresa',  'confirmado', '●', '2026-05-28');
+  ('Nicolás',         'Socio · Dirección',  'socio', 0.20, 0, 'N'),
+  ('Franco Otiniano', 'Socio · Producción', 'socio', 0.20, 0, 'F');

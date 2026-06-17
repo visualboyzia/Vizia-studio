@@ -81,6 +81,26 @@ window.Store = (function () {
     return { id: data.id, t: data.t, amt: +data.amt, cur: data.cur, origAmt: data.orig_amt != null ? +data.orig_amt : Math.abs(+data.amt), desc: data.descr, proj: data.proj, paidFrom: data.paid_from, status: data.status, ic: data.ic, date: data.date };
   }
 
+  async function addProject(row) {
+    if (!CLOUD) {
+      const d = lsRead() || {}; d.projects = d.projects || [];
+      row.id = row.id || ('p' + Date.now());
+      d.projects.push(row); lsWrite(d); return row;
+    }
+    const ins = { nm: row.nm, cl: row.cl, total: row.total, cobrado: row.cobrado, status: row.status };
+    const { data, error } = await sb.from('projects').insert(ins).select().single();
+    if (error) throw new Error(error.message);
+    return { id: data.id, nm: data.nm, cl: data.cl, total: +data.total, cobrado: +data.cobrado, status: data.status };
+  }
+
+  async function deleteTx(id) {
+    if (!CLOUD) {
+      const d = lsRead() || {}; d.tx = (d.tx || []).filter(t => String(t.id) !== String(id)); lsWrite(d); return;
+    }
+    const { error } = await sb.from('transactions').delete().eq('id', id);
+    if (error) throw new Error(error.message);
+  }
+
   async function saveSettings(partial) {
     if (!CLOUD) {
       const d = lsRead() || {}; d.settings = Object.assign({}, d.settings, partial); lsWrite(d); return;
@@ -108,5 +128,5 @@ window.Store = (function () {
 
   function resetLocal() { localStorage.removeItem(LS); }
 
-  return { init, isCloud, signIn, signOut, fetchAll, addTx, saveSettings, persistLocal, onChange, resetLocal };
+  return { init, isCloud, signIn, signOut, fetchAll, addTx, addProject, deleteTx, saveSettings, persistLocal, onChange, resetLocal };
 })();

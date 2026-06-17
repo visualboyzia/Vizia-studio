@@ -267,6 +267,16 @@ button{font-family:inherit; cursor:pointer; border:none; background:none; color:
   font-size:12.5px;color:var(--txt-2);margin-bottom:18px;background:var(--surface)}
 .email-pill .g{width:8px;height:8px;border-radius:50%;background:var(--pos)}
 
+/* estados vacíos y edición */
+.empty{text-align:center;padding:44px 24px;border:1px dashed var(--line-2);border-radius:var(--r);background:var(--surface);margin-top:8px}
+.empty .e-t{font-size:16px;font-weight:600;margin-bottom:7px}
+.empty .e-s{font-size:13px;color:var(--txt-2);line-height:1.5;max-width:280px;margin:0 auto}
+.sec-h2{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px}
+.sec-h2 .filters{margin-bottom:0;flex:1}
+.edit-tg{font-size:13px;color:var(--txt-2);padding:8px 14px;border-radius:99px;border:1px solid var(--line);background:var(--surface);white-space:nowrap;transition:.2s}
+.edit-tg.on{background:var(--accent);color:#000;border-color:var(--accent)}
+.tx-del{width:26px;height:26px;border-radius:50%;background:rgba(240,138,138,.15);border:1px solid rgba(240,138,138,.4);
+  color:var(--neg);font-size:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-right:-2px}
 /* cuentas */
 .acc-total{font-size:36px;letter-spacing:-.01em;margin-bottom:4px}
 .acc-list{margin-top:14px;border-top:1px solid var(--line);padding-top:6px}
@@ -434,6 +444,30 @@ button{font-family:inherit; cursor:pointer; border:none; background:none; color:
     <button class="save" onclick="saveTx()">Guardar movimiento</button>
   </div>
 
+  <!-- NUEVO PROYECTO -->
+  <div class="sheet-bg" id="projBg" onclick="closeProjSheet()"></div>
+  <div class="sheet" id="projSheet">
+    <div class="grab"></div>
+    <h3>Nuevo trabajo</h3>
+    <div class="field"><label>Nombre del proyecto</label><input id="pNm" type="text" placeholder="Ej. Torre San Isidro" /></div>
+    <div class="field"><label>Cliente</label><input id="pCl" type="text" placeholder="Ej. Estudio Arqué" /></div>
+    <div class="field big"><label>Valor total</label>
+      <div class="amt-in">
+        <div class="ccy-mini">
+          <button class="on" id="pUSD" onclick="setProjCur('USD')">$</button>
+          <button id="pPEN" onclick="setProjCur('PEN')">S/</button>
+        </div>
+        <input id="pTotal" type="number" inputmode="decimal" placeholder="0" />
+      </div>
+    </div>
+    <div class="row2">
+      <div class="field"><label>Ya cobrado</label><input id="pCobrado" type="number" inputmode="decimal" placeholder="0" /></div>
+      <div class="field"><label>Estado</label>
+        <select id="pStatus"><option>Propuesta</option><option selected>En curso</option><option>Entregado</option></select></div>
+    </div>
+    <button class="save" onclick="saveProj()">Guardar trabajo</button>
+  </div>
+
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -461,44 +495,23 @@ const state = {
   team:[
     {nm:'Nicolás', role:'Socio · Dirección', type:'socio', share:0.20, av:'N'},
     {nm:'Franco Otiniano', role:'Socio · Producción', type:'socio', share:0.20, av:'F'},
-    {nm:'Render freelance', role:'3D / Render', type:'freelance', pay:1200, av:'R'},
   ],
   cajaReserva:0, // queda en caja del estudio (se calcula)
   todayDay:15, // 15 jun 2026
   igv:{on:false, rate:0.18}, // se activa cuando facturen formal
   // Saldo real por cuenta de banco (USD). No se edita a mano: cambia con cada movimiento.
   accounts:{'Nicolás':1722.24, 'Franco':1589.58, 'Empresa':0},
-  // Cobros recurrentes (suscripciones) — avisan 3 días y 1 día antes
-  recurring:[
-    {nm:'Octane Render', amt:20, cur:'USD', day:16, ic:'◇'},
-    {nm:'Chaos V-Ray', amt:45, cur:'USD', day:18, ic:'◇'},
-    {nm:'Render farm (créditos)', amt:120, cur:'USD', day:14, ic:'☁'},
-    {nm:'Adobe Creative Cloud', amt:55, cur:'USD', day:5, ic:'◆'},
-  ],
-  projects:[
-    {id:'p1', nm:'Torre Miraflores', cl:'Estudio Arqué', total:8000, cobrado:4000, status:'En curso'},
-    {id:'p2', nm:'Casa Las Lomas',  cl:'Bauen Arquitectos', total:5200, cobrado:5200, status:'Entregado'},
-    {id:'p3', nm:'Lobby Hotel Costa', cl:'Mirador SAC', total:6500, cobrado:1950, status:'En curso'},
-    {id:'p4', nm:'Máster Plan Surco', cl:'Estudio Arqué', total:9800, cobrado:0, status:'Propuesta'},
-  ],
-  cats:[
-    {nm:'Software / Render', v:680, c:'#f4f4f3'},
-    {nm:'Freelance 3D', v:1200, c:'#9a9a9f'},
-    {nm:'Equipos', v:540, c:'#5e5e64'},
-    {nm:'Operación', v:380, c:'#34343a'},
-  ],
-  tx:[
-    {id:1,t:'in',amt:1950,cur:'USD',origAmt:1950,paidFrom:'Empresa',status:'pendiente',desc:'Adelanto 30% — Lobby Hotel Costa',proj:'Mirador SAC',date:'2026-06-12',ic:'◐'},
-    {id:2,t:'out',amt:-1200,cur:'PEN',origAmt:4500,paidFrom:'Franco',status:'confirmado',desc:'Freelance modelado 3D',proj:'Operación',date:'2026-06-11',ic:'◇'},
-    {id:3,t:'in',amt:4000,cur:'USD',origAmt:4000,paidFrom:'Empresa',status:'confirmado',desc:'Adelanto 50% — Torre Miraflores',proj:'Estudio Arqué',date:'2026-06-08',ic:'◑'},
-    {id:4,t:'out',amt:-180,cur:'USD',origAmt:180,paidFrom:'Nicolás',status:'confirmado',desc:'Adobe + Chaos (render)',proj:'Software / Render',date:'2026-06-05',ic:'◇'},
-    {id:5,t:'out',amt:-540,cur:'PEN',origAmt:2025,paidFrom:'Nicolás',status:'confirmado',desc:'Disco SSD + RAM workstation',proj:'Equipos',date:'2026-06-03',ic:'▢'},
-    {id:6,t:'in',amt:5200,cur:'USD',origAmt:5200,paidFrom:'Empresa',status:'confirmado',desc:'Pago final — Casa Las Lomas',proj:'Bauen Arquitectos',date:'2026-05-28',ic:'●'},
-  ],
-  // ingresos/gastos por mes (E,F,M,A,M,J)
+  // Categorías sugeridas para gastos (solo nombres; el gasto real se calcula de los movimientos)
+  catNames:['Software / Render','Freelance 3D','Equipos','Operación','Marketing','Impuestos','Otros'],
+  // Cobros recurrentes (suscripciones) — avisan 3 días y 1 día antes. Vacío: agrégalos tú.
+  recurring:[],
+  // Proyectos y movimientos: arrancan vacíos, son tus datos reales.
+  projects:[],
+  tx:[],
+  // flujo mensual (se va llenando con tus movimientos)
   months:['Ene','Feb','Mar','Abr','May','Jun'],
-  inflow:[6200,5400,7800,6900,8600,11150],
-  outflow:[3100,2800,3400,3900,3200,2800],
+  inflow:[0,0,0,0,0,0],
+  outflow:[0,0,0,0,0,0],
   metaMensual:9000,
 };
 
@@ -563,12 +576,22 @@ function go(p,btn){
 function totals(){
   const inc=state.inflow[5], exp=state.outflow[5], net=inc-exp;
   const prevNet=state.inflow[4]-state.outflow[4];
-  const delta=((net-prevNet)/prevNet*100);
+  const delta = prevNet ? ((net-prevNet)/Math.abs(prevNet)*100) : (net?100:0);
   return {inc,exp,net,delta};
 }
+function catsFromTx(){
+  const palette=['#f4f4f3','#9a9a9f','#5e5e64','#34343a','#6b6b72','#46464c'];
+  const map={};
+  state.tx.filter(x=>x.t==='out').forEach(x=>{ map[x.proj]=(map[x.proj]||0)+Math.abs(x.amt); });
+  return Object.keys(map).sort((a,b)=>map[b]-map[a]).map((k,i)=>({nm:k,v:map[k],c:palette[i%palette.length]}));
+}
+function emptyState(t,s){ return `<div class="empty"><div class="e-t">${t}</div><div class="e-s">${s}</div></div>`; }
 
 function render(){
   const t=totals();
+  const inCount=state.tx.filter(x=>x.t==='in').length;
+  const outCount=state.tx.filter(x=>x.t==='out').length;
+  const cats=catsFromTx(); const catTot=cats.reduce((a,b)=>a+b.v,0);
   // RESUMEN
   document.getElementById('p-resumen').innerHTML=`
     ${remindersHTML()}
@@ -582,13 +605,14 @@ function render(){
     </div>
     <div class="split">
       <div class="cell"><div class="t"><span class="dot" style="background:var(--pos)"></span>Ingresos</div>
-        <div class="v serif">${fmt(t.inc)}</div><div class="s">6 movimientos</div></div>
+        <div class="v serif">${fmt(t.inc)}</div><div class="s">${inCount} ${inCount===1?'movimiento':'movimientos'}</div></div>
       <div class="cell"><div class="t"><span class="dot" style="background:var(--neg)"></span>Gastos</div>
-        <div class="v serif">${fmt(t.exp)}</div><div class="s">4 movimientos</div></div>
+        <div class="v serif">${fmt(t.exp)}</div><div class="s">${outCount} ${outCount===1?'movimiento':'movimientos'}</div></div>
     </div>
 
     ${accountsHTML()}
 
+    ${state.inflow.some(v=>v)||state.outflow.some(v=>v)?`
     <div class="card">
       <div class="ch"><div class="ct">Flujo · últimos 6 meses</div><div class="cs">Ingreso vs. gasto</div></div>
       <div class="bars" id="bars">${barsHTML()}</div>
@@ -597,22 +621,23 @@ function render(){
         <i><b style="background:var(--accent)"></b>Ingresos</i>
         <i><b style="background:var(--surface-2);border:1px solid var(--line-2)"></b>Gastos</i>
       </div>
-    </div>
+    </div>`:''}
 
+    ${cats.length?`
     <div class="card">
-      <div class="ch"><div class="ct">En qué se va el dinero</div><div class="cs">Junio</div></div>
+      <div class="ch"><div class="ct">En qué se va el dinero</div><div class="cs">este mes</div></div>
       <div class="cats">
-        ${donutHTML()}
+        ${donutHTML(cats,catTot)}
         <div class="cat-list">
-          ${state.cats.map(c=>{const tot=state.cats.reduce((a,b)=>a+b.v,0);
-            return `<div class="cat-row"><span class="d" style="background:${c.c}"></span>
-            <span class="nm">${c.nm}</span><span class="pc">${Math.round(c.v/tot*100)}%</span></div>`}).join('')}
+          ${cats.map(c=>`<div class="cat-row"><span class="d" style="background:${c.c}"></span>
+            <span class="nm">${c.nm}</span><span class="pc">${Math.round(c.v/catTot*100)}%</span></div>`).join('')}
         </div>
       </div>
-    </div>
+    </div>`:''}
 
-    <div class="sec-h"><div class="t serif">Recientes</div><div class="a" onclick="go('mov',document.querySelector('[data-p=mov]'))">Ver todo</div></div>
-    ${state.tx.slice(0,4).map(txHTML).join('')}
+    <div class="sec-h"><div class="t serif">Recientes</div>${state.tx.length?`<div class="a" onclick="go('mov',document.querySelector('[data-p=mov]'))">Ver todo</div>`:''}</div>
+    ${state.tx.length ? state.tx.slice(0,4).map(txHTML).join('')
+      : emptyState('Aún no hay movimientos','Toca el botón + para registrar tu primer ingreso o gasto.')}
   `;
 
   // MOVIMIENTOS
@@ -623,14 +648,18 @@ function render(){
       <div class="lbl">Movimientos</div>
       <div class="bal serif" style="font-size:42px"><span class="cur">${sym()}</span>${dispNum(t.net)}</div>
     </div>
-    <div class="filters">
-      <button class="on">Todos</button><button>Ingresos</button><button>Gastos</button>
-      <button>Por cobrar</button><button>Este mes</button>
+    ${state.tx.length?`
+    <div class="sec-h2">
+      <div class="filters">
+        <button class="on">Todos</button><button>Ingresos</button><button>Gastos</button><button>Por cobrar</button>
+      </div>
+      <button class="edit-tg ${editMode?'on':''}" onclick="toggleEdit()">${editMode?'Listo':'Editar'}</button>
     </div>
     ${Object.keys(groups).map(d=>`
       <div class="day-h">${dateLabel(d)}</div>
       ${groups[d].map(txHTML).join('')}
-    `).join('')}
+    `).join('')}`
+    : emptyState('Aún no hay movimientos','Toca el botón + abajo para registrar tu primer ingreso o gasto del estudio.')}
   `;
   document.querySelectorAll('.filters button').forEach(b=>b.onclick=()=>{
     document.querySelectorAll('.filters button').forEach(x=>x.classList.remove('on'));b.classList.add('on');});
@@ -643,8 +672,9 @@ function render(){
       <div class="bal serif" style="font-size:46px"><span class="cur">${sym()}</span>${dispNum(porCobrar)}</div>
       <div class="delta up" style="cursor:default">${state.projects.filter(p=>p.cobrado<p.total).length} trabajos con saldo pendiente</div>
     </div>
-    <div class="sec-h"><div class="t serif">Trabajos</div><div class="a">+ Nuevo</div></div>
-    ${state.projects.map(projHTML).join('')}
+    <div class="sec-h"><div class="t serif">Trabajos</div><div class="a" onclick="openProjSheet()">+ Nuevo</div></div>
+    ${state.projects.length ? state.projects.map(projHTML).join('')
+      : emptyState('Aún no hay proyectos','Agrega tu primer trabajo: cliente, valor total y cuánto te han pagado.')}
   `;
 
   // METAS
@@ -738,8 +768,22 @@ function remindersHTML(){
   </div>`;
 }
 function toggleIGV(){ state.igv.on=!state.igv.on; render(); Store.saveSettings({igv:state.igv}).catch(()=>{}); }
+let editMode=false;
+function toggleEdit(){ editMode=!editMode; render(); }
+async function deleteTx(id){
+  const x=state.tx.find(t=>String(t.id)===String(id));
+  if(!x) return;
+  if(!confirm('¿Eliminar este movimiento?\n'+x.desc)) return;
+  const usd=Math.abs(x.amt);
+  state.tx=state.tx.filter(t=>String(t.id)!==String(id));
+  if(x.t==='in'){ if(x.status!=='pendiente'){ state.inflow[5]-=usd; if(state.accounts[x.paidFrom]!=null) state.accounts[x.paidFrom]-=usd; } }
+  else { state.outflow[5]-=usd; if(state.accounts[x.paidFrom]!=null) state.accounts[x.paidFrom]+=usd; }
+  try{ await Store.deleteTx(x.id); await Store.persistLocal(SEED());
+    Store.saveSettings({accounts:state.accounts}).catch(()=>{}); }catch(e){ alert('No se pudo borrar: '+e.message); }
+  render();
+}
 function barsHTML(){
-  const max=Math.max(...state.inflow);
+  const max=Math.max(1,...state.inflow,...state.outflow);
   return state.months.map((m,i)=>`
     <div class="col">
       <div class="b-in" data-h="${state.inflow[i]/max*100}" style="height:0"></div>
@@ -751,9 +795,9 @@ function animateBars(){
     b.style.height=(parseFloat(b.dataset.h)*.85)+'%';
   });
 }
-function donutHTML(){
-  const tot=state.cats.reduce((a,b)=>a+b.v,0); let off=0; const R=46,C=2*Math.PI*R;
-  const segs=state.cats.map(c=>{const frac=c.v/tot;const dash=frac*C;
+function donutHTML(cats,tot){
+  let off=0; const R=46,C=2*Math.PI*R;
+  const segs=cats.map(c=>{const frac=c.v/tot;const dash=frac*C;
     const s=`<circle cx="54" cy="54" r="${R}" fill="none" stroke="${c.c}" stroke-width="11"
       stroke-dasharray="${dash} ${C-dash}" stroke-dashoffset="${-off}" transform="rotate(-90 54 54)"/>`;
     off+=dash;return s;}).join('');
@@ -767,14 +811,16 @@ function txHTML(x){
   if(x.paidFrom && x.paidFrom!=='Empresa') sub+=` · ${x.t==='in'?'a':'pagó'} ${x.paidFrom}`;
   if(oc!==state.display) sub+=` · ≈ ${symG()}${dispNum(x.amt)}`;
   const pend=x.status==='pendiente'?'<span class="pend-tag">pendiente</span>':'';
+  const del=editMode?`<button class="tx-del" onclick="deleteTx('${x.id}')">✕</button>`:'';
   return `<div class="tx">
+    ${del}
     <div class="ic">${x.ic}</div>
     <div class="mid"><div class="nm">${x.desc}${pend}</div><div class="sub">${sub}</div></div>
     <div class="amt ${x.t==='in'?'pos':'neg'}">${orig}</div>
   </div>`;
 }
 function projHTML(p){
-  const pc=Math.round(p.cobrado/p.total*100);
+  const pc=p.total?Math.round(p.cobrado/p.total*100):0;
   return `<div class="proj">
     <div class="ph"><div><div class="nm">${p.nm}</div><div class="cl">${p.cl}</div></div>
       <div class="badge">${p.status}</div></div>
@@ -817,6 +863,37 @@ async function fetchRate(){
   }catch(e){ /* sin internet → queda 3.75 manual */ }
 }
 
+/* ---------------- NUEVO PROYECTO ---------------- */
+let projCur='USD';
+function setProjCur(c){ projCur=c;
+  document.getElementById('pUSD').classList.toggle('on',c==='USD');
+  document.getElementById('pPEN').classList.toggle('on',c==='PEN'); }
+function openProjSheet(){ setProjCur('USD');
+  document.getElementById('projBg').classList.add('open');
+  document.getElementById('projSheet').classList.add('open'); }
+function closeProjSheet(){ document.getElementById('projBg').classList.remove('open');
+  document.getElementById('projSheet').classList.remove('open'); }
+async function saveProj(){
+  const nm=document.getElementById('pNm').value.trim();
+  const cl=document.getElementById('pCl').value.trim()||'—';
+  const totalIn=parseFloat(document.getElementById('pTotal').value||0);
+  const cobradoIn=parseFloat(document.getElementById('pCobrado').value||0);
+  const status=document.getElementById('pStatus').value;
+  if(!nm){ document.getElementById('pNm').focus(); return; }
+  const k=projCur==='USD'?1:1/state.rate;
+  const row={nm, cl, total:totalIn*k, cobrado:cobradoIn*k, status};
+  const btn=document.querySelector('#projSheet .save'); const lbl=btn.textContent; btn.textContent='Guardando…';
+  try{
+    const saved=await Store.addProject(row);
+    state.projects.push(saved);
+    await Store.persistLocal(SEED());
+  }catch(e){ btn.textContent=lbl; alert('No se pudo guardar: '+e.message); return; }
+  btn.textContent=lbl;
+  document.getElementById('pNm').value=''; document.getElementById('pCl').value='';
+  document.getElementById('pTotal').value=''; document.getElementById('pCobrado').value='';
+  closeProjSheet(); render();
+}
+
 /* ---------------- BOOTSTRAP ---------------- */
 (function boot(){
   const cloud = Store.init();
@@ -836,8 +913,8 @@ let txType='in';
 function openSheet(){
   const sel=document.getElementById('fProj');
   sel.innerHTML=(txType==='in'?
-    state.projects.map(p=>`<option>${p.cl} — ${p.nm}</option>`):
-    state.cats.map(c=>`<option>${c.nm}</option>`)).join('');
+    (state.projects.length?state.projects.map(p=>`<option>${p.cl} — ${p.nm}</option>`):['<option>Sin proyecto aún</option>']):
+    state.catNames.map(n=>`<option>${n}</option>`)).join('');
   document.getElementById('fDate').value='2026-06-15';
   setAddCur(state.addCur);
   document.getElementById('sheetBg').classList.add('open');
