@@ -4,7 +4,7 @@ window.Store = (function () {
   const cfg = window.VIZIA_CONFIG || {};
   const CLOUD = !!(cfg.url && cfg.anonKey && /^https?:\/\//.test(cfg.url));
   const LS = 'vizia_fin_v1';
-  const DATA_VERSION = 5; // súbelo cuando cambie la estructura → limpia datos viejos guardados
+  const DATA_VERSION = 6; // súbelo cuando cambie la estructura → limpia datos viejos guardados
   let sb = null;
 
   function init() {
@@ -50,8 +50,8 @@ window.Store = (function () {
     const s = st.data || {};
     return {
       activity: (ac.data || []).map(r => ({ id: r.id, who: r.who, action: r.action, detail: r.detail, created_at: r.created_at })),
-      projects: (p.data || []).map(r => ({ id: r.id, nm: r.nm, cl: r.cl, total: +r.total, cobrado: +r.cobrado, status: r.status })),
-      tx: (tx.data || []).map(r => ({ id: r.id, t: r.t, amt: +r.amt, cur: r.cur, origAmt: r.orig_amt != null ? +r.orig_amt : Math.abs(+r.amt), desc: r.descr, proj: r.proj, paidFrom: r.paid_from, status: r.status, voided: !!r.voided, voidedBy: r.voided_by, ic: r.ic, date: r.date })),
+      projects: (p.data || []).map(r => ({ id: r.id, nm: r.nm, cl: r.cl, total: +r.total, cobrado: +r.cobrado, status: r.status, items: r.items || [] })),
+      tx: (tx.data || []).map(r => ({ id: r.id, t: r.t, amt: +r.amt, cur: r.cur, origAmt: r.orig_amt != null ? +r.orig_amt : Math.abs(+r.amt), desc: r.descr, proj: r.proj, paidFrom: r.paid_from, status: r.status, voided: !!r.voided, voidedBy: r.voided_by, edited: !!r.edited, editedBy: r.edited_by, editNote: r.edit_note, ic: r.ic, date: r.date })),
       team: (tm.data || []).map(r => ({ nm: r.nm, role: r.role, type: r.type, share: +r.share, pay: +r.pay, av: r.av })),
       recurring: (rc.data || []).map(r => ({ id: r.id, nm: r.nm, amt: +r.amt, cur: r.cur, day: r.day, ic: r.ic, active: r.active !== false, thisMonth: r.this_month || null })),
       settings: {
@@ -134,6 +134,39 @@ window.Store = (function () {
     if (error) throw new Error(error.message);
   }
 
+  async function updateTx(id, patch) {
+    if (!CLOUD) {
+      const d = lsRead() || {}; (d.tx || []).forEach(t => { if (String(t.id) === String(id)) Object.assign(t, patch); }); lsWrite(d); return;
+    }
+    const up = {};
+    if (patch.amt != null) up.amt = patch.amt;
+    if (patch.cur != null) up.cur = patch.cur;
+    if (patch.origAmt != null) up.orig_amt = patch.origAmt;
+    if (patch.desc != null) up.descr = patch.desc;
+    if (patch.proj != null) up.proj = patch.proj;
+    if (patch.paidFrom != null) up.paid_from = patch.paidFrom;
+    if (patch.status != null) up.status = patch.status;
+    if (patch.date != null) up.date = patch.date;
+    if (patch.edited != null) up.edited = patch.edited;
+    if (patch.editedBy != null) up.edited_by = patch.editedBy;
+    if (patch.editNote !== undefined) up.edit_note = patch.editNote;
+    const { error } = await sb.from('transactions').update(up).eq('id', id);
+    if (error) throw new Error(error.message);
+  }
+
+  async function updateProject(id, patch) {
+    if (!CLOUD) {
+      const d = lsRead() || {}; (d.projects || []).forEach(p => { if (String(p.id) === String(id)) Object.assign(p, patch); }); lsWrite(d); return;
+    }
+    const up = {};
+    if (patch.total != null) up.total = patch.total;
+    if (patch.cobrado != null) up.cobrado = patch.cobrado;
+    if (patch.status != null) up.status = patch.status;
+    if (patch.items != null) up.items = patch.items;
+    const { error } = await sb.from('projects').update(up).eq('id', id);
+    if (error) throw new Error(error.message);
+  }
+
   async function voidTx(id, who) {
     if (!CLOUD) {
       const d = lsRead() || {}; (d.tx || []).forEach(t => { if (String(t.id) === String(id)) { t.voided = true; t.voidedBy = who; } }); lsWrite(d); return;
@@ -169,5 +202,5 @@ window.Store = (function () {
 
   function resetLocal() { localStorage.removeItem(LS); }
 
-  return { init, isCloud, signIn, signOut, fetchAll, addTx, addProject, voidTx, addRecurring, updateRecurring, logActivity, saveSettings, persistLocal, onChange, resetLocal };
+  return { init, isCloud, signIn, signOut, fetchAll, addTx, addProject, updateTx, updateProject, voidTx, addRecurring, updateRecurring, logActivity, saveSettings, persistLocal, onChange, resetLocal };
 })();

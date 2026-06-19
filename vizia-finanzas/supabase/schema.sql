@@ -13,6 +13,7 @@ create table if not exists projects (
   total      numeric default 0,
   cobrado    numeric default 0,
   status     text default 'En curso',
+  items      jsonb default '[]',                  -- adicionales y cobros dentro del proyecto
   created_at timestamptz default now()
 );
 
@@ -28,6 +29,9 @@ create table if not exists transactions (
   status     text default 'confirmado',                 -- confirmado | pendiente
   voided     boolean default false,                     -- anulado (no se borra: queda en historial)
   voided_by  text,
+  edited     boolean default false,                     -- fue editado
+  edited_by  text,
+  edit_note  text,                                       -- motivo del cambio
   ic         text,
   date       date not null,
   created_by text,
