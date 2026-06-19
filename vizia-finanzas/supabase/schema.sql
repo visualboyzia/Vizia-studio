@@ -45,7 +45,8 @@ create table if not exists team (
   type   text default 'freelance',   -- socio | freelance
   share  numeric default 0,          -- % de ingresos (socios), ej. 0.20
   pay    numeric default 0,          -- pago fijo mensual USD (freelance)
-  av     text
+  av     text,
+  paid_month text                    -- null | 'paid' (se pagó/retiró este mes — manual, no automático)
 );
 
 create table if not exists recurring (

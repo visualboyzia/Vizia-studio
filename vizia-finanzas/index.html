@@ -201,6 +201,8 @@ button{font-family:inherit; cursor:pointer; border:none; background:none; color:
 .goal .ring{float:right;margin:-4px 0 0}
 .split2{display:flex;gap:12px;margin-bottom:14px}
 .split2 .goal{flex:1;margin-bottom:0}
+.pay-btn{font-size:12.5px;font-weight:600;color:#000;background:var(--accent);padding:9px 14px;border-radius:99px;white-space:nowrap}
+.pay-btn:active{transform:scale(.96)}
 .payout{display:flex;gap:12px;margin-top:4px}
 .payout .p{flex:1;background:var(--surface-2);border:1px solid var(--line);border-radius:var(--r-sm);padding:14px;text-align:center}
 .payout .p .av{width:32px;height:32px;border-radius:50%;background:var(--accent);color:#000;font-weight:600;font-size:12px;
@@ -618,7 +620,7 @@ const state = {
   // Saldo real por cuenta de banco (USD). No se edita a mano: cambia con cada movimiento.
   accounts:{'Nicolás':1722.24, 'Franco':1589.58, 'Empresa':0},
   // Categorías sugeridas para gastos (solo nombres; el gasto real se calcula de los movimientos)
-  catNames:['Software / Render','Suscripciones','Freelance 3D','Equipos','Operación','Marketing','Impuestos','Otros'],
+  catNames:['Software / Render','Suscripciones','Reparto / Retiros','Equipo','Freelance 3D','Equipos','Operación','Marketing','Impuestos','Otros'],
   // Cobros recurrentes (suscripciones) — avisan 3 días y 1 día antes. Vacío: agrégalos tú.
   recurring:[],
   // Proyectos y movimientos: arrancan vacíos, son tus datos reales.
@@ -820,11 +822,18 @@ function render(){
   // METAS
   const ritmo=Math.round(t.inc/state.metaMensual*100);
   const equilibrio=2800;
+  const utilidad=t.net;
+  const sugSocio=Math.max(0, Math.round(utilidad*0.20)); // 20% de la utilidad (después de gastos)
   const socios=state.team.filter(m=>m.type==='socio');
-  const igv=state.igv.on ? Math.round(t.inc*state.igv.rate) : 0;
-  const repTotal=socios.reduce((a,m)=>a+t.inc*m.share,0);
-  const caja=t.net-repTotal-igv;
-  const colchon=(t.inc/equilibrio).toFixed(1);
+  const freelancers=state.team.filter(m=>m.type!=='socio');
+  const colchon=t.inc?(t.inc/equilibrio).toFixed(1):'0';
+  const payRow=(m,amount)=>`<div class="member ${m.type}">
+      <div class="av-m">${m.av||m.nm[0]}</div>
+      <div class="mid"><div class="nm">${m.nm}</div><div class="rl">${m.role||''}</div></div>
+      <div class="pay">${m.paidMonth==='paid'
+        ? `<div class="am serif">${fmt(amount)}</div><div class="tg" style="color:var(--pos)">Pagado ✓</div>`
+        : `<button class="pay-btn" onclick="payMember('${m.nm.replace(/'/g,"\\'")}',${Math.round(amount)})">Marcar pagado</button>`}</div>
+    </div>`;
   document.getElementById('p-metas').innerHTML=`
     <div class="hero" style="margin-bottom:18px">
       <div class="lbl">Meta del mes</div>
@@ -833,29 +842,27 @@ function render(){
     </div>
 
     <div class="card" style="margin-top:0">
-      <div class="ch"><div class="ct">Reparto del mes</div>
-        <button class="igv-chip ${state.igv.on?'on':''}" onclick="toggleIGV()">IGV 18% · ${state.igv.on?'activo':'off'}</button></div>
+      <div class="ch"><div class="ct">Utilidad del mes</div><div class="cs">ingresos − gastos</div></div>
       <div class="casc">
         <div class="r"><span class="l">Ingresos del mes</span><span class="v pos2">+${fmt(t.inc)}</span></div>
-        <div class="r"><span class="l">− Gastos (software, equipos, freelance)</span><span class="v neg2">−${fmt(t.exp)}</span></div>
-        <div class="r tot"><span class="l">= Utilidad neta</span><span class="v">${fmt(t.net)}</span></div>
-        ${igv?`<div class="r"><span class="l">− IGV 18% (a remitir a SUNAT)</span><span class="v neg2">−${fmt(igv)}</span></div>`:''}
-        ${socios.map(m=>`<div class="r"><span class="l"><span class="av-x">${m.av}</span>${m.nm.split(' ')[0]} · ${m.share*100}%</span><span class="v">−${fmt(t.inc*m.share)}</span></div>`).join('')}
-        <div class="r fin"><span class="l">Queda en caja del estudio</span><span class="v serif">${fmt(caja)}</span></div>
+        <div class="r"><span class="l">− Gastos</span><span class="v neg2">−${fmt(t.exp)}</span></div>
+        <div class="r fin"><span class="l">= Utilidad neta</span><span class="v serif">${fmt(utilidad)}</span></div>
       </div>
     </div>
 
-    <div class="sec-h"><div class="t serif">Equipo</div><div class="a">+ Agregar</div></div>
+    <div class="sec-h"><div class="t serif">Reparto a socios</div></div>
     <div class="card" style="margin-top:0">
-      ${state.team.map(m=>{
-        const amt=m.type==='socio'?t.inc*m.share:m.pay;
-        const tag=m.type==='socio'?`20% · este mes`:'Pago fijo';
-        return `<div class="member ${m.type}">
-          <div class="av-m">${m.av}</div>
-          <div class="mid"><div class="nm">${m.nm}</div><div class="rl">${m.role}</div></div>
-          <div class="pay"><div class="am serif">${fmt(amt)}</div><div class="tg">${tag}</div></div>
-        </div>`;}).join('')}
+      <p style="font-size:12.5px;color:var(--txt-2);margin:0 0 6px;line-height:1.5">Sugerido: <b style="color:var(--txt)">20% de la utilidad</b> para cada uno (después de gastos). No se descuenta solo — al confirmar, ajustas el monto real y eliges de qué cuenta sale.</p>
+      <div style="font-size:12px;color:var(--txt-3);margin-bottom:8px">≈ ${fmt(sugSocio)} c/u este mes</div>
+      ${socios.map(m=>payRow(m,sugSocio)).join('')}
     </div>
+
+    ${freelancers.length?`
+    <div class="sec-h"><div class="t serif">Pagos al equipo</div></div>
+    <div class="card" style="margin-top:0">
+      <p style="font-size:12.5px;color:var(--txt-2);margin:0 0 8px;line-height:1.5">Tampoco se resta solo. Cuando le pagues, marca "pagado" y ahí baja de la cuenta.</p>
+      ${freelancers.map(m=>payRow(m,m.pay)).join('')}
+    </div>`:''}
 
     <div class="sec-h"><div class="t serif">Salud del estudio</div></div>
     <div class="stat-row">
@@ -863,13 +870,8 @@ function render(){
       <div class="st"><div class="v serif">${colchon}×</div><div class="l">Facturas ${colchon}× tu costo fijo</div></div>
     </div>
     <div class="stat-row">
-      <div class="st"><div class="v serif" style="color:var(--pos)">${fmtK(caja)}</div><div class="l">Reserva generada este mes</div></div>
+      <div class="st"><div class="v serif" style="color:var(--pos)">${fmtK(utilidad)}</div><div class="l">Utilidad disponible este mes</div></div>
       <div class="st"><div class="v serif">${fmtK(9000)}</div><div class="l">Mínimo mensual para crecer</div></div>
-    </div>
-
-    <div class="insight" style="margin-top:18px">
-      <span class="e">↗</span>
-      <div class="tx2"><b>Buen mes.</b> Cada socio se lleva <b>${fmt(repTotal/2)}</b> y aún queda <b>${fmt(caja)}</b> en caja. Facturaste <b>30% más</b> que en mayo; si mantienes el ritmo cierras el trimestre sobre <b>${fmtK(30000)}</b>.</div>
     </div>
   `;
   setTimeout(animateBars,80);
@@ -996,6 +998,17 @@ async function skipSub(id){
     logAct('marcó suscripción como no usada este mes', s.nm);
   }catch(e){ alert('Error: '+e.message); }
   render();
+}
+let pendingPayout=null;
+function payMember(nm, amount){
+  const m=state.team.find(x=>x.nm===nm); if(!m) return;
+  pendingPayout=nm;
+  setType('out'); openSheet();
+  document.getElementById('fAmt').value=Math.round(amount)||'';
+  setAddCur('USD');
+  document.getElementById('fDesc').value=(m.type==='socio'?'Retiro '+nm.split(' ')[0]:'Pago a '+nm);
+  const cat=document.getElementById('fProj'); const want=m.type==='socio'?'Reparto / Retiros':'Equipo';
+  if([...cat.options].some(o=>o.value===want)) cat.value=want;
 }
 let pendingSubPay=null;
 function paySub(id){
@@ -1299,7 +1312,7 @@ function resetSheetUI(){
 function openAdd(){ resetSheetUI();
   document.getElementById('fAmt').value=''; document.getElementById('fDesc').value=''; document.getElementById('fPend').checked=false;
   openSheet(); }
-function closeSheet(){document.getElementById('sheetBg').classList.remove('open');document.getElementById('sheet').classList.remove('open');pendingSubPay=null;resetSheetUI();}
+function closeSheet(){document.getElementById('sheetBg').classList.remove('open');document.getElementById('sheet').classList.remove('open');pendingSubPay=null;pendingPayout=null;resetSheetUI();}
 function editTx(id){
   const x=state.tx.find(t=>String(t.id)===String(id)); if(!x || x.voided) return;
   editingTx=x;
@@ -1374,6 +1387,12 @@ async function saveTx(){
       if(s){ s.thisMonth='paid'; await Store.updateRecurring(s.id,{thisMonth:'paid'}); await Store.persistLocal(SEED());
         logAct('confirmó pago de suscripción', s.nm); }
       pendingSubPay=null;
+    }
+    if(pendingPayout){
+      const m=state.team.find(x=>x.nm===pendingPayout);
+      if(m){ m.paidMonth='paid'; await Store.updateTeam(m.nm,{paidMonth:'paid'}); await Store.persistLocal(SEED());
+        logAct(m.type==='socio'?'registró un retiro':'pagó al equipo', `${m.nm} · ${fmt(usd)}`); }
+      pendingPayout=null;
     }
   }catch(e){ btn.textContent=lbl; alert('No se pudo guardar: '+e.message); return; }
   btn.textContent=lbl;

@@ -4,7 +4,7 @@ window.Store = (function () {
   const cfg = window.VIZIA_CONFIG || {};
   const CLOUD = !!(cfg.url && cfg.anonKey && /^https?:\/\//.test(cfg.url));
   const LS = 'vizia_fin_v1';
-  const DATA_VERSION = 6; // súbelo cuando cambie la estructura → limpia datos viejos guardados
+  const DATA_VERSION = 7; // súbelo cuando cambie la estructura → limpia datos viejos guardados
   let sb = null;
 
   function init() {
@@ -52,7 +52,7 @@ window.Store = (function () {
       activity: (ac.data || []).map(r => ({ id: r.id, who: r.who, action: r.action, detail: r.detail, created_at: r.created_at })),
       projects: (p.data || []).map(r => ({ id: r.id, nm: r.nm, cl: r.cl, total: +r.total, cobrado: +r.cobrado, status: r.status, items: r.items || [] })),
       tx: (tx.data || []).map(r => ({ id: r.id, t: r.t, amt: +r.amt, cur: r.cur, origAmt: r.orig_amt != null ? +r.orig_amt : Math.abs(+r.amt), desc: r.descr, proj: r.proj, paidFrom: r.paid_from, status: r.status, voided: !!r.voided, voidedBy: r.voided_by, edited: !!r.edited, editedBy: r.edited_by, editNote: r.edit_note, ic: r.ic, date: r.date })),
-      team: (tm.data || []).map(r => ({ nm: r.nm, role: r.role, type: r.type, share: +r.share, pay: +r.pay, av: r.av })),
+      team: (tm.data || []).map(r => ({ nm: r.nm, role: r.role, type: r.type, share: +r.share, pay: +r.pay, av: r.av, paidMonth: r.paid_month || null })),
       recurring: (rc.data || []).map(r => ({ id: r.id, nm: r.nm, amt: +r.amt, cur: r.cur, day: r.day, ic: r.ic, active: r.active !== false, thisMonth: r.this_month || null })),
       settings: {
         display: s.display || seed.settings.display,
@@ -120,6 +120,18 @@ window.Store = (function () {
     if (patch.active != null) up.active = patch.active;
     if (patch.thisMonth !== undefined) up.this_month = patch.thisMonth;
     const { error } = await sb.from('recurring').update(up).eq('id', id);
+    if (error) throw new Error(error.message);
+  }
+
+  async function updateTeam(nm, patch) {
+    if (!CLOUD) {
+      const d = lsRead() || {}; (d.team || []).forEach(m => { if (m.nm === nm) Object.assign(m, patch); }); lsWrite(d); return;
+    }
+    const up = {};
+    if (patch.paidMonth !== undefined) up.paid_month = patch.paidMonth;
+    if (patch.pay != null) up.pay = patch.pay;
+    if (patch.share != null) up.share = patch.share;
+    const { error } = await sb.from('team').update(up).eq('nm', nm);
     if (error) throw new Error(error.message);
   }
 
@@ -202,5 +214,5 @@ window.Store = (function () {
 
   function resetLocal() { localStorage.removeItem(LS); }
 
-  return { init, isCloud, signIn, signOut, fetchAll, addTx, addProject, updateTx, updateProject, voidTx, addRecurring, updateRecurring, logActivity, saveSettings, persistLocal, onChange, resetLocal };
+  return { init, isCloud, signIn, signOut, fetchAll, addTx, addProject, updateTx, updateProject, voidTx, addRecurring, updateRecurring, updateTeam, logActivity, saveSettings, persistLocal, onChange, resetLocal };
 })();
