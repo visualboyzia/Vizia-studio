@@ -6,6 +6,11 @@
 <meta name="theme-color" content="#0a0a0b" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="VIZIA" />
+<meta name="mobile-web-app-capable" content="yes" />
+<link rel="manifest" href="manifest.json" />
+<link rel="apple-touch-icon" href="apple-touch-icon.png" />
+<link rel="icon" type="image/png" href="icon-192.png" />
 <title>VIZIA · Finanzas</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -439,7 +444,8 @@ button{font-family:inherit; cursor:pointer; border:none; background:none; color:
         <div class="av">F</div><div class="nm">Franco</div><div class="rl">Socio</div>
       </button>
     </div>
-    <input id="loginPwd" class="login-pwd" type="password" placeholder="Contraseña" style="display:none" onkeydown="if(event.key==='Enter')enterApp()" />
+    <input id="loginEmail" type="email" autocomplete="username" style="position:absolute;opacity:0;height:0;width:0;pointer-events:none" tabindex="-1" aria-hidden="true" />
+    <input id="loginPwd" class="login-pwd" type="password" placeholder="Contraseña" autocomplete="current-password" style="display:none" onkeydown="if(event.key==='Enter')enterApp()" />
     <div id="loginErr" class="login-err"></div>
     <button class="enter" id="enterBtn" onclick="enterApp()">Entrar al estudio</button>
     <div class="login-foot" id="loginFoot">Protegido · Face ID</div>
@@ -673,7 +679,11 @@ function applyData(d){
 
 /* ---------------- LOGIN ---------------- */
 function pickUser(b){document.querySelectorAll('#who button').forEach(x=>x.classList.remove('sel'));b.classList.add('sel');
-  state.user=b.dataset.name; state.uav=b.dataset.u; state.uid=b.dataset.u;}
+  state.user=b.dataset.name; state.uav=b.dataset.u; state.uid=b.dataset.u;
+  const u=(window.VIZIA_CONFIG&&window.VIZIA_CONFIG.users||[]).find(x=>x.id===b.dataset.u);
+  const em=document.getElementById('loginEmail'); if(em&&u) em.value=u.email||''; // para autofill/Face ID
+  const pw=document.getElementById('loginPwd'); if(pw){ pw.value=''; setTimeout(()=>pw.focus(),50); }
+}
 async function enterApp(){
   const err=document.getElementById('loginErr'); err.textContent='';
   const btn=document.getElementById('enterBtn');

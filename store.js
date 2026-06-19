@@ -8,7 +8,9 @@ window.Store = (function () {
   let sb = null;
 
   function init() {
-    if (CLOUD && window.supabase) sb = window.supabase.createClient(cfg.url, cfg.anonKey);
+    if (CLOUD && window.supabase) sb = window.supabase.createClient(cfg.url, cfg.anonKey, {
+      auth: { persistSession: false, autoRefreshToken: true, detectSessionInUrl: true }
+    }); // persistSession:false → pide contraseña/Face ID cada vez que abres
     return CLOUD;
   }
   const isCloud = () => CLOUD;
