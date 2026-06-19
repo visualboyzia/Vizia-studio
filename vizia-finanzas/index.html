@@ -267,8 +267,25 @@ button{font-family:inherit; cursor:pointer; border:none; background:none; color:
   font-size:12.5px;color:var(--txt-2);margin-bottom:18px;background:var(--surface)}
 .email-pill .g{width:8px;height:8px;border-radius:50%;background:var(--pos)}
 
+/* anulado */
+.tx.voided{opacity:.45}
+.tx.voided .amt{text-decoration:line-through}
+.tx.voided .nm{text-decoration:line-through}
+.void-tag{font-size:10px;font-weight:600;color:var(--neg);background:rgba(240,138,138,.12);border:1px solid rgba(240,138,138,.3);
+  padding:1px 6px;border-radius:99px;margin-left:7px;vertical-align:middle;letter-spacing:.02em;text-decoration:none;display:inline-block}
+.tx.voided .void-tag{text-decoration:none}
+/* notificación en avatar */
+.av-sm{cursor:pointer;position:relative}
+.nb{position:absolute;top:-4px;right:-4px;min-width:17px;height:17px;padding:0 4px;border-radius:99px;
+  background:var(--neg);color:#000;font-size:10px;font-weight:700;display:none;align-items:center;justify-content:center;
+  border:2px solid var(--bg)}
+/* toast */
+.toast{position:fixed;left:50%;transform:translateX(-50%) translateY(-20px);bottom:calc(92px + var(--safe-b));z-index:90;
+  background:var(--surface-2);border:1px solid var(--line-2);border-radius:13px;padding:13px 18px;font-size:13.5px;font-weight:500;
+  max-width:88%;box-shadow:0 14px 40px -10px rgba(0,0,0,.7);opacity:0;pointer-events:none;transition:.35s}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast b{font-weight:700}
 /* actividad */
-.av-sm{cursor:pointer}
 .act-row{display:flex;align-items:flex-start;gap:12px;padding:13px 0;border-bottom:1px solid var(--line)}
 .act-row:last-child{border-bottom:none}
 .act-av{width:32px;height:32px;border-radius:50%;background:var(--accent);color:#000;font-weight:600;font-size:13px;
@@ -386,7 +403,7 @@ button{font-family:inherit; cursor:pointer; border:none; background:none; color:
       <div class="topbar">
         <div class="hi">Hola, <b id="userName">Nicolás</b><br><span style="color:var(--txt-3)">Junio 2026</span></div>
         <div class="logo">VIZIA</div>
-        <div class="av-sm" id="userAv" onclick="openActivity()" title="Actividad">N</div>
+        <div class="av-sm" id="userAv" onclick="openActivity()" title="Actividad">N<span class="nb" id="notifBadge"></span></div>
       </div>
 
       <div class="ccybar" id="ccybar">
@@ -477,6 +494,8 @@ button{font-family:inherit; cursor:pointer; border:none; background:none; color:
     </div>
     <button class="save" onclick="saveProj()">Guardar trabajo</button>
   </div>
+
+  <div class="toast" id="toast"></div>
 
   <!-- ACTIVIDAD -->
   <div class="sheet-bg" id="actBg" onclick="closeActivity()"></div>
@@ -581,7 +600,12 @@ async function enterApp(){
   setDisplay(state.display);
   setTimeout(()=>sh.classList.add('show'),120);
   render(); fetchRate();
-  Store.onChange(async()=>{ try{ applyData(await Store.fetchAll(SEED())); render(); }catch(e){} });
+  Store.onChange(async()=>{ try{
+    const prevTop=state.activity[0] && state.activity[0].id;
+    applyData(await Store.fetchAll(SEED())); render();
+    const top=state.activity[0];
+    if(top && top.id!==prevTop && top.who!==state.user) toast(`<b>${top.who}</b> ${top.action}`);
+  }catch(e){} });
 }
 
 /* ---------------- NAV ---------------- */
@@ -604,15 +628,15 @@ function totals(){
 function catsFromTx(){
   const palette=['#f4f4f3','#9a9a9f','#5e5e64','#34343a','#6b6b72','#46464c'];
   const map={};
-  state.tx.filter(x=>x.t==='out').forEach(x=>{ map[x.proj]=(map[x.proj]||0)+Math.abs(x.amt); });
+  state.tx.filter(x=>x.t==='out' && !x.voided).forEach(x=>{ map[x.proj]=(map[x.proj]||0)+Math.abs(x.amt); });
   return Object.keys(map).sort((a,b)=>map[b]-map[a]).map((k,i)=>({nm:k,v:map[k],c:palette[i%palette.length]}));
 }
 function emptyState(t,s){ return `<div class="empty"><div class="e-t">${t}</div><div class="e-s">${s}</div></div>`; }
 
 function render(){
   const t=totals();
-  const inCount=state.tx.filter(x=>x.t==='in').length;
-  const outCount=state.tx.filter(x=>x.t==='out').length;
+  const inCount=state.tx.filter(x=>x.t==='in' && !x.voided).length;
+  const outCount=state.tx.filter(x=>x.t==='out' && !x.voided).length;
   const cats=catsFromTx(); const catTot=cats.reduce((a,b)=>a+b.v,0);
   // RESUMEN
   document.getElementById('p-resumen').innerHTML=`
@@ -755,6 +779,7 @@ function render(){
     </div>
   `;
   setTimeout(animateBars,80);
+  updateNotif();
 }
 
 function accountsHTML(){
@@ -792,18 +817,18 @@ function remindersHTML(){
 function toggleIGV(){ state.igv.on=!state.igv.on; render(); Store.saveSettings({igv:state.igv}).catch(()=>{}); }
 let editMode=false;
 function toggleEdit(){ editMode=!editMode; render(); }
-async function deleteTx(id){
+async function voidTx(id){
   const x=state.tx.find(t=>String(t.id)===String(id));
-  if(!x) return;
-  if(!confirm('¿Eliminar este movimiento?\n'+x.desc)) return;
+  if(!x || x.voided) return;
+  if(!confirm('¿Anular este movimiento?\n\n'+x.desc+'\n\nNo se borra: queda en el historial marcado como "anulado por '+state.user+'".')) return;
   const usd=Math.abs(x.amt);
-  state.tx=state.tx.filter(t=>String(t.id)!==String(id));
+  x.voided=true; x.voidedBy=state.user;
   if(x.t==='in'){ if(x.status!=='pendiente'){ state.inflow[5]-=usd; if(state.accounts[x.paidFrom]!=null) state.accounts[x.paidFrom]-=usd; } }
   else { state.outflow[5]-=usd; if(state.accounts[x.paidFrom]!=null) state.accounts[x.paidFrom]+=usd; }
-  try{ await Store.deleteTx(x.id); await Store.persistLocal(SEED());
+  try{ await Store.voidTx(x.id, state.user); await Store.persistLocal(SEED());
     Store.saveSettings({accounts:state.accounts}).catch(()=>{});
-    logAct('eliminó un movimiento', `${x.desc} · ${x.cur==='USD'?'$':'S/ '}${x.origAmt!=null?x.origAmt:Math.abs(x.amt)}`);
-  }catch(e){ alert('No se pudo borrar: '+e.message); }
+    logAct('anuló un movimiento', `${x.desc} · ${x.cur==='USD'?'$':'S/ '}${x.origAmt!=null?x.origAmt:usd}`);
+  }catch(e){ x.voided=false; alert('No se pudo anular: '+e.message); }
   render();
 }
 function barsHTML(){
@@ -834,12 +859,13 @@ function txHTML(x){
   let sub=`${x.proj} · ${dateShort(x.date)}`;
   if(x.paidFrom && x.paidFrom!=='Empresa') sub+=` · ${x.t==='in'?'a':'pagó'} ${x.paidFrom}`;
   if(oc!==state.display) sub+=` · ≈ ${symG()}${dispNum(x.amt)}`;
-  const pend=x.status==='pendiente'?'<span class="pend-tag">pendiente</span>':'';
-  const del=editMode?`<button class="tx-del" onclick="deleteTx('${x.id}')">✕</button>`:'';
-  return `<div class="tx">
+  const pend=(!x.voided && x.status==='pendiente')?'<span class="pend-tag">pendiente</span>':'';
+  const vtag=x.voided?`<span class="void-tag">anulado${x.voidedBy?' · '+x.voidedBy:''}</span>`:'';
+  const del=(editMode && !x.voided)?`<button class="tx-del" onclick="voidTx('${x.id}')" title="Anular">✕</button>`:'';
+  return `<div class="tx ${x.voided?'voided':''}">
     ${del}
     <div class="ic">${x.ic}</div>
-    <div class="mid"><div class="nm">${x.desc}${pend}</div><div class="sub">${sub}</div></div>
+    <div class="mid"><div class="nm">${x.desc}${pend}${vtag}</div><div class="sub">${sub}</div></div>
     <div class="amt ${x.t==='in'?'pos':'neg'}">${orig}</div>
   </div>`;
 }
@@ -894,6 +920,18 @@ async function logAct(action, detail){
   if(state.activity.length>100) state.activity.length=100;
   try{ await Store.logActivity({who:state.user, action, detail, at}); }catch(_){}
 }
+function toast(msg){
+  const t=document.getElementById('toast'); if(!t) return;
+  t.innerHTML=msg; t.classList.add('show');
+  clearTimeout(window._tt); window._tt=setTimeout(()=>t.classList.remove('show'),3600);
+}
+function updateNotif(){
+  const b=document.getElementById('notifBadge'); if(!b) return;
+  const seen=+(localStorage.getItem('vizia_seen')||0);
+  const n=state.activity.filter(a=>new Date(a.created_at).getTime()>seen && a.who!==state.user).length;
+  b.textContent = n>0 ? (n>9?'9+':n) : '';
+  b.style.display = n>0 ? 'flex' : 'none';
+}
 function timeAgo(iso){
   const s=Math.floor((Date.now()-new Date(iso).getTime())/1000);
   if(s<60) return 'ahora'; if(s<3600) return 'hace '+Math.floor(s/60)+' min';
@@ -911,6 +949,7 @@ function openActivity(){
     </div>`).join('') : emptyState('Sin actividad todavía','Aquí verás quién agregó o quitó cada cosa, con fecha y hora.');
   document.getElementById('actBg').classList.add('open');
   document.getElementById('actSheet').classList.add('open');
+  localStorage.setItem('vizia_seen', Date.now()); updateNotif();
 }
 function closeActivity(){ document.getElementById('actBg').classList.remove('open');
   document.getElementById('actSheet').classList.remove('open'); }

@@ -4,7 +4,7 @@ window.Store = (function () {
   const cfg = window.VIZIA_CONFIG || {};
   const CLOUD = !!(cfg.url && cfg.anonKey && /^https?:\/\//.test(cfg.url));
   const LS = 'vizia_fin_v1';
-  const DATA_VERSION = 3; // súbelo cuando cambie la estructura → limpia datos viejos guardados
+  const DATA_VERSION = 4; // súbelo cuando cambie la estructura → limpia datos viejos guardados
   let sb = null;
 
   function init() {
@@ -51,7 +51,7 @@ window.Store = (function () {
     return {
       activity: (ac.data || []).map(r => ({ id: r.id, who: r.who, action: r.action, detail: r.detail, created_at: r.created_at })),
       projects: (p.data || []).map(r => ({ id: r.id, nm: r.nm, cl: r.cl, total: +r.total, cobrado: +r.cobrado, status: r.status })),
-      tx: (tx.data || []).map(r => ({ id: r.id, t: r.t, amt: +r.amt, cur: r.cur, origAmt: r.orig_amt != null ? +r.orig_amt : Math.abs(+r.amt), desc: r.descr, proj: r.proj, paidFrom: r.paid_from, status: r.status, ic: r.ic, date: r.date })),
+      tx: (tx.data || []).map(r => ({ id: r.id, t: r.t, amt: +r.amt, cur: r.cur, origAmt: r.orig_amt != null ? +r.orig_amt : Math.abs(+r.amt), desc: r.descr, proj: r.proj, paidFrom: r.paid_from, status: r.status, voided: !!r.voided, voidedBy: r.voided_by, ic: r.ic, date: r.date })),
       team: (tm.data || []).map(r => ({ nm: r.nm, role: r.role, type: r.type, share: +r.share, pay: +r.pay, av: r.av })),
       recurring: (rc.data || []).map(r => ({ nm: r.nm, amt: +r.amt, cur: r.cur, day: r.day, ic: r.ic })),
       settings: {
@@ -107,11 +107,11 @@ window.Store = (function () {
     if (error) throw new Error(error.message);
   }
 
-  async function deleteTx(id) {
+  async function voidTx(id, who) {
     if (!CLOUD) {
-      const d = lsRead() || {}; d.tx = (d.tx || []).filter(t => String(t.id) !== String(id)); lsWrite(d); return;
+      const d = lsRead() || {}; (d.tx || []).forEach(t => { if (String(t.id) === String(id)) { t.voided = true; t.voidedBy = who; } }); lsWrite(d); return;
     }
-    const { error } = await sb.from('transactions').delete().eq('id', id);
+    const { error } = await sb.from('transactions').update({ voided: true, voided_by: who }).eq('id', id);
     if (error) throw new Error(error.message);
   }
 
@@ -142,5 +142,5 @@ window.Store = (function () {
 
   function resetLocal() { localStorage.removeItem(LS); }
 
-  return { init, isCloud, signIn, signOut, fetchAll, addTx, addProject, deleteTx, logActivity, saveSettings, persistLocal, onChange, resetLocal };
+  return { init, isCloud, signIn, signOut, fetchAll, addTx, addProject, voidTx, logActivity, saveSettings, persistLocal, onChange, resetLocal };
 })();

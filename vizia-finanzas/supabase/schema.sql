@@ -26,6 +26,8 @@ create table if not exists transactions (
   proj       text,                                      -- cliente/proyecto o categoría
   paid_from  text default 'Empresa',                    -- Empresa | Nicolás | Franco
   status     text default 'confirmado',                 -- confirmado | pendiente
+  voided     boolean default false,                     -- anulado (no se borra: queda en historial)
+  voided_by  text,
   ic         text,
   date       date not null,
   created_by text,
