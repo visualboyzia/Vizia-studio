@@ -444,10 +444,12 @@ button{font-family:inherit; cursor:pointer; border:none; background:none; color:
         <div class="av">F</div><div class="nm">Franco</div><div class="rl">Socio</div>
       </button>
     </div>
-    <input id="loginEmail" type="email" autocomplete="username" style="position:absolute;opacity:0;height:0;width:0;pointer-events:none" tabindex="-1" aria-hidden="true" />
-    <input id="loginPwd" class="login-pwd" type="password" placeholder="Contraseña" autocomplete="current-password" style="display:none" onkeydown="if(event.key==='Enter')enterApp()" />
-    <div id="loginErr" class="login-err"></div>
-    <button class="enter" id="enterBtn" onclick="enterApp()">Entrar al estudio</button>
+    <form id="loginForm" style="width:100%;max-width:340px;display:flex;flex-direction:column;align-items:center" onsubmit="event.preventDefault();enterApp()">
+      <input id="loginEmail" name="username" type="email" autocomplete="username" style="position:absolute;opacity:0;height:0;width:0;pointer-events:none" tabindex="-1" aria-hidden="true" />
+      <input id="loginPwd" class="login-pwd" type="password" placeholder="Contraseña" autocomplete="current-password" style="display:none" />
+      <div id="loginErr" class="login-err"></div>
+      <button class="enter" id="enterBtn" type="submit">Entrar al estudio</button>
+    </form>
     <div class="login-foot" id="loginFoot">Protegido · Face ID</div>
   </section>
 
