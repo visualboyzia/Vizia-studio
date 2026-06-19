@@ -51,6 +51,14 @@ create table if not exists recurring (
   ic  text default '◇'
 );
 
+create table if not exists activity (
+  id         uuid primary key default uuid_generate_v4(),
+  who        text,                               -- quién hizo el cambio
+  action     text,                               -- agregó / eliminó / creó…
+  detail     text,
+  created_at timestamptz default now()
+);
+
 create table if not exists settings (
   id       int primary key default 1,
   display  text default 'USD',
@@ -70,11 +78,12 @@ alter table transactions enable row level security;
 alter table team         enable row level security;
 alter table recurring    enable row level security;
 alter table settings     enable row level security;
+alter table activity     enable row level security;
 
 do $$
 declare tbl text;
 begin
-  foreach tbl in array array['projects','transactions','team','recurring','settings'] loop
+  foreach tbl in array array['projects','transactions','team','recurring','settings','activity'] loop
     execute format('drop policy if exists "auth_all" on %I;', tbl);
     execute format(
       'create policy "auth_all" on %I for all to authenticated using (true) with check (true);', tbl);
@@ -87,6 +96,7 @@ alter publication supabase_realtime add table projects;
 alter publication supabase_realtime add table team;
 alter publication supabase_realtime add table recurring;
 alter publication supabase_realtime add table settings;
+alter publication supabase_realtime add table activity;
 
 -- ── Datos iniciales ──────────────────────────────────────────────
 insert into settings (id, accounts) values

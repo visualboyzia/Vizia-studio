@@ -4,7 +4,7 @@ window.Store = (function () {
   const cfg = window.VIZIA_CONFIG || {};
   const CLOUD = !!(cfg.url && cfg.anonKey && /^https?:\/\//.test(cfg.url));
   const LS = 'vizia_fin_v1';
-  const DATA_VERSION = 2; // súbelo cuando cambie la estructura → limpia datos viejos guardados
+  const DATA_VERSION = 3; // súbelo cuando cambie la estructura → limpia datos viejos guardados
   let sb = null;
 
   function init() {
@@ -37,17 +37,19 @@ window.Store = (function () {
       if (!d || d.__v !== DATA_VERSION) { d = seed; lsWrite(d); } // datos viejos → reinicia limpio
       return d;
     }
-    const [p, tx, tm, rc, st] = await Promise.all([
+    const [p, tx, tm, rc, st, ac] = await Promise.all([
       sb.from('projects').select('*').order('created_at'),
       sb.from('transactions').select('*').order('date', { ascending: false }),
       sb.from('team').select('*').order('id'),
       sb.from('recurring').select('*').order('day'),
       sb.from('settings').select('*').eq('id', 1).maybeSingle(),
+      sb.from('activity').select('*').order('created_at', { ascending: false }).limit(80),
     ]);
-    const err = [p, tx, tm, rc, st].find(r => r.error);
+    const err = [p, tx, tm, rc, st, ac].find(r => r.error);
     if (err) throw new Error(err.error.message);
     const s = st.data || {};
     return {
+      activity: (ac.data || []).map(r => ({ id: r.id, who: r.who, action: r.action, detail: r.detail, created_at: r.created_at })),
       projects: (p.data || []).map(r => ({ id: r.id, nm: r.nm, cl: r.cl, total: +r.total, cobrado: +r.cobrado, status: r.status })),
       tx: (tx.data || []).map(r => ({ id: r.id, t: r.t, amt: +r.amt, cur: r.cur, origAmt: r.orig_amt != null ? +r.orig_amt : Math.abs(+r.amt), desc: r.descr, proj: r.proj, paidFrom: r.paid_from, status: r.status, ic: r.ic, date: r.date })),
       team: (tm.data || []).map(r => ({ nm: r.nm, role: r.role, type: r.type, share: +r.share, pay: +r.pay, av: r.av })),
@@ -94,6 +96,17 @@ window.Store = (function () {
     return { id: data.id, nm: data.nm, cl: data.cl, total: +data.total, cobrado: +data.cobrado, status: data.status };
   }
 
+  async function logActivity(e) {
+    if (!CLOUD) {
+      const d = lsRead() || {}; d.activity = d.activity || [];
+      d.activity.unshift({ id: 'a' + Date.now(), who: e.who, action: e.action, detail: e.detail, created_at: e.at });
+      if (d.activity.length > 100) d.activity.length = 100;
+      lsWrite(d); return;
+    }
+    const { error } = await sb.from('activity').insert({ who: e.who, action: e.action, detail: e.detail });
+    if (error) throw new Error(error.message);
+  }
+
   async function deleteTx(id) {
     if (!CLOUD) {
       const d = lsRead() || {}; d.tx = (d.tx || []).filter(t => String(t.id) !== String(id)); lsWrite(d); return;
@@ -129,5 +142,5 @@ window.Store = (function () {
 
   function resetLocal() { localStorage.removeItem(LS); }
 
-  return { init, isCloud, signIn, signOut, fetchAll, addTx, addProject, deleteTx, saveSettings, persistLocal, onChange, resetLocal };
+  return { init, isCloud, signIn, signOut, fetchAll, addTx, addProject, deleteTx, logActivity, saveSettings, persistLocal, onChange, resetLocal };
 })();

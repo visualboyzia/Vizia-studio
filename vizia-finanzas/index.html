@@ -267,6 +267,16 @@ button{font-family:inherit; cursor:pointer; border:none; background:none; color:
   font-size:12.5px;color:var(--txt-2);margin-bottom:18px;background:var(--surface)}
 .email-pill .g{width:8px;height:8px;border-radius:50%;background:var(--pos)}
 
+/* actividad */
+.av-sm{cursor:pointer}
+.act-row{display:flex;align-items:flex-start;gap:12px;padding:13px 0;border-bottom:1px solid var(--line)}
+.act-row:last-child{border-bottom:none}
+.act-av{width:32px;height:32px;border-radius:50%;background:var(--accent);color:#000;font-weight:600;font-size:13px;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.act-mid{flex:1;min-width:0}
+.act-t{font-size:14px;color:var(--txt-2)}.act-t b{color:var(--txt);font-weight:600}
+.act-d{font-size:12.5px;color:var(--txt-3);margin-top:3px;word-break:break-word}
+.act-when{font-size:11px;color:var(--txt-3);white-space:nowrap;flex-shrink:0;padding-top:2px}
 /* estados vacíos y edición */
 .empty{text-align:center;padding:44px 24px;border:1px dashed var(--line-2);border-radius:var(--r);background:var(--surface);margin-top:8px}
 .empty .e-t{font-size:16px;font-weight:600;margin-bottom:7px}
@@ -376,7 +386,7 @@ button{font-family:inherit; cursor:pointer; border:none; background:none; color:
       <div class="topbar">
         <div class="hi">Hola, <b id="userName">Nicolás</b><br><span style="color:var(--txt-3)">Junio 2026</span></div>
         <div class="logo">VIZIA</div>
-        <div class="av-sm" id="userAv">N</div>
+        <div class="av-sm" id="userAv" onclick="openActivity()" title="Actividad">N</div>
       </div>
 
       <div class="ccybar" id="ccybar">
@@ -468,6 +478,15 @@ button{font-family:inherit; cursor:pointer; border:none; background:none; color:
     <button class="save" onclick="saveProj()">Guardar trabajo</button>
   </div>
 
+  <!-- ACTIVIDAD -->
+  <div class="sheet-bg" id="actBg" onclick="closeActivity()"></div>
+  <div class="sheet" id="actSheet">
+    <div class="grab"></div>
+    <h3>Actividad</h3>
+    <p style="font-size:12.5px;color:var(--txt-2);margin:-8px 0 16px;line-height:1.5">Quién agregó o quitó cada cosa, con fecha y hora. Cada socio entra con su cuenta.</p>
+    <div id="actList" style="max-height:60vh;overflow-y:auto"></div>
+  </div>
+
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -508,6 +527,8 @@ const state = {
   // Proyectos y movimientos: arrancan vacíos, son tus datos reales.
   projects:[],
   tx:[],
+  // Registro de quién hizo cada cambio (auditoría)
+  activity:[],
   // flujo mensual (se va llenando con tus movimientos)
   months:['Ene','Feb','Mar','Abr','May','Jun'],
   inflow:[0,0,0,0,0,0],
@@ -517,7 +538,7 @@ const state = {
 
 /* ---------------- BACKEND: snapshot ---------------- */
 function SEED(){ return JSON.parse(JSON.stringify({
-  projects:state.projects, tx:state.tx, team:state.team, recurring:state.recurring,
+  projects:state.projects, tx:state.tx, team:state.team, recurring:state.recurring, activity:state.activity,
   settings:{ display:state.display, rate:state.rate, igv:state.igv, meta:state.metaMensual,
              inflow:state.inflow, outflow:state.outflow, accounts:state.accounts }
 })); }
@@ -527,6 +548,7 @@ function applyData(d){
   if(d.tx) state.tx=d.tx;
   if(d.team) state.team=d.team;
   if(d.recurring) state.recurring=d.recurring;
+  if(d.activity) state.activity=d.activity;
   if(d.settings){ const s=d.settings;
     if(s.display) state.display=s.display;
     if(s.rate!=null) state.rate=s.rate;
@@ -779,7 +801,9 @@ async function deleteTx(id){
   if(x.t==='in'){ if(x.status!=='pendiente'){ state.inflow[5]-=usd; if(state.accounts[x.paidFrom]!=null) state.accounts[x.paidFrom]-=usd; } }
   else { state.outflow[5]-=usd; if(state.accounts[x.paidFrom]!=null) state.accounts[x.paidFrom]+=usd; }
   try{ await Store.deleteTx(x.id); await Store.persistLocal(SEED());
-    Store.saveSettings({accounts:state.accounts}).catch(()=>{}); }catch(e){ alert('No se pudo borrar: '+e.message); }
+    Store.saveSettings({accounts:state.accounts}).catch(()=>{});
+    logAct('eliminó un movimiento', `${x.desc} · ${x.cur==='USD'?'$':'S/ '}${x.origAmt!=null?x.origAmt:Math.abs(x.amt)}`);
+  }catch(e){ alert('No se pudo borrar: '+e.message); }
   render();
 }
 function barsHTML(){
@@ -863,6 +887,34 @@ async function fetchRate(){
   }catch(e){ /* sin internet → queda 3.75 manual */ }
 }
 
+/* ---------------- ACTIVIDAD (quién hizo qué) ---------------- */
+async function logAct(action, detail){
+  const at=new Date().toISOString();
+  state.activity.unshift({id:'a'+Date.now(), who:state.user, action, detail, created_at:at});
+  if(state.activity.length>100) state.activity.length=100;
+  try{ await Store.logActivity({who:state.user, action, detail, at}); }catch(_){}
+}
+function timeAgo(iso){
+  const s=Math.floor((Date.now()-new Date(iso).getTime())/1000);
+  if(s<60) return 'ahora'; if(s<3600) return 'hace '+Math.floor(s/60)+' min';
+  if(s<86400) return 'hace '+Math.floor(s/3600)+' h';
+  return 'hace '+Math.floor(s/86400)+' d';
+}
+function openActivity(){
+  const list=document.getElementById('actList');
+  list.innerHTML = state.activity.length ? state.activity.map(a=>`
+    <div class="act-row">
+      <div class="act-av">${(a.who||'?')[0]}</div>
+      <div class="act-mid"><div class="act-t"><b>${a.who}</b> ${a.action}</div>
+        <div class="act-d">${a.detail||''}</div></div>
+      <div class="act-when">${timeAgo(a.created_at)}</div>
+    </div>`).join('') : emptyState('Sin actividad todavía','Aquí verás quién agregó o quitó cada cosa, con fecha y hora.');
+  document.getElementById('actBg').classList.add('open');
+  document.getElementById('actSheet').classList.add('open');
+}
+function closeActivity(){ document.getElementById('actBg').classList.remove('open');
+  document.getElementById('actSheet').classList.remove('open'); }
+
 /* ---------------- NUEVO PROYECTO ---------------- */
 let projCur='USD';
 function setProjCur(c){ projCur=c;
@@ -887,6 +939,7 @@ async function saveProj(){
     const saved=await Store.addProject(row);
     state.projects.push(saved);
     await Store.persistLocal(SEED());
+    logAct('creó un proyecto', `${nm} — ${cl}`);
   }catch(e){ btn.textContent=lbl; alert('No se pudo guardar: '+e.message); return; }
   btn.textContent=lbl;
   document.getElementById('pNm').value=''; document.getElementById('pCl').value='';
@@ -953,6 +1006,8 @@ async function saveTx(){
     }
     await Store.persistLocal(SEED());
     Store.saveSettings({accounts:state.accounts}).catch(()=>{});
+    logAct(txType==='in'?'agregó un ingreso':'agregó un gasto',
+      `${desc} · ${cur==='USD'?'$':'S/ '}${amt}${cuenta&&cuenta!=='Empresa'?' → '+cuenta:''}`);
   }catch(e){ btn.textContent=lbl; alert('No se pudo guardar: '+e.message); return; }
   btn.textContent=lbl;
   document.getElementById('fAmt').value='';document.getElementById('fDesc').value='';
