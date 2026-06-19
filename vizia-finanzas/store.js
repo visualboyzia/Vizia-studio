@@ -4,6 +4,7 @@ window.Store = (function () {
   const cfg = window.VIZIA_CONFIG || {};
   const CLOUD = !!(cfg.url && cfg.anonKey && /^https?:\/\//.test(cfg.url));
   const LS = 'vizia_fin_v1';
+  const DATA_VERSION = 2; // súbelo cuando cambie la estructura → limpia datos viejos guardados
   let sb = null;
 
   function init() {
@@ -27,13 +28,13 @@ window.Store = (function () {
 
   // ---------- LOCAL helpers ----------
   function lsRead() { try { return JSON.parse(localStorage.getItem(LS)); } catch (e) { return null; } }
-  function lsWrite(d) { localStorage.setItem(LS, JSON.stringify(d)); }
+  function lsWrite(d) { d.__v = DATA_VERSION; localStorage.setItem(LS, JSON.stringify(d)); }
 
   // ---------- LOAD ----------
   async function fetchAll(seed) {
     if (!CLOUD) {
       let d = lsRead();
-      if (!d) { d = seed; lsWrite(d); }
+      if (!d || d.__v !== DATA_VERSION) { d = seed; lsWrite(d); } // datos viejos → reinicia limpio
       return d;
     }
     const [p, tx, tm, rc, st] = await Promise.all([
