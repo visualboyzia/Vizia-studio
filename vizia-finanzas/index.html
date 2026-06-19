@@ -267,6 +267,25 @@ button{font-family:inherit; cursor:pointer; border:none; background:none; color:
   font-size:12.5px;color:var(--txt-2);margin-bottom:18px;background:var(--surface)}
 .email-pill .g{width:8px;height:8px;border-radius:50%;background:var(--pos)}
 
+/* botones de aviso (pagar/saltar) */
+.alert-act{display:flex;gap:9px;margin:-3px 0 9px}
+.alert-act .aa{flex:1;padding:11px;border-radius:12px;font-size:13px;font-weight:600;transition:.2s;border:1px solid var(--line-2)}
+.alert-act .pay{background:var(--accent);color:#000;border-color:var(--accent)}
+.alert-act .skip{background:var(--surface);color:var(--txt-2)}
+.alert-act .aa:active{transform:scale(.97)}
+/* suscripciones */
+.subs-card:active{transform:scale(.99)}
+.sub-row{display:flex;align-items:center;gap:12px;padding:13px 0;border-bottom:1px solid var(--line)}
+.sub-row:last-child{border-bottom:none}
+.sub-row.paused{opacity:.5}
+.sub-row .mid{flex:1;min-width:0}
+.sub-row .nm{font-size:14px;font-weight:500;display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.sub-row .sub{font-size:12px;color:var(--txt-3);margin-top:3px}
+.sub-chip{font-size:10px;font-weight:600;padding:1px 7px;border-radius:99px;background:var(--surface-2);border:1px solid var(--line-2);color:var(--txt-2);letter-spacing:.02em}
+.sub-chip.ok{color:var(--pos);border-color:rgba(127,220,164,.3);background:rgba(127,220,164,.1)}
+.sub-chip.off{color:var(--txt-3)}
+.sub-toggle{font-size:12px;color:var(--txt-2);padding:8px 13px;border-radius:99px;border:1px solid var(--line-2);background:var(--surface);white-space:nowrap;flex-shrink:0}
+.sub-form{border-top:1px solid var(--line);padding-top:16px}
 /* anulado */
 .tx.voided{opacity:.45}
 .tx.voided .amt{text-decoration:line-through}
@@ -298,6 +317,13 @@ button{font-family:inherit; cursor:pointer; border:none; background:none; color:
 .empty{text-align:center;padding:44px 24px;border:1px dashed var(--line-2);border-radius:var(--r);background:var(--surface);margin-top:8px}
 .empty .e-t{font-size:16px;font-weight:600;margin-bottom:7px}
 .empty .e-s{font-size:13px;color:var(--txt-2);line-height:1.5;max-width:280px;margin:0 auto}
+.search-wrap{position:relative;margin-bottom:12px}
+.search-wrap .si{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--txt-3);font-size:17px}
+.search{width:100%;padding:13px 38px 13px 38px;border-radius:13px;background:var(--surface);border:1px solid var(--line);
+  color:var(--txt);font-size:14.5px;font-family:inherit}
+.search:focus{outline:none;border-color:var(--line-2);background:var(--surface-2)}
+.search-wrap .sx{position:absolute;right:10px;top:50%;transform:translateY(-50%);width:24px;height:24px;border-radius:50%;
+  background:var(--surface-2);border:1px solid var(--line-2);color:var(--txt-2);font-size:11px}
 .sec-h2{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px}
 .sec-h2 .filters{margin-bottom:0;flex:1}
 .edit-tg{font-size:13px;color:var(--txt-2);padding:8px 14px;border-radius:99px;border:1px solid var(--line);background:var(--surface);white-space:nowrap;transition:.2s}
@@ -495,6 +521,30 @@ button{font-family:inherit; cursor:pointer; border:none; background:none; color:
     <button class="save" onclick="saveProj()">Guardar trabajo</button>
   </div>
 
+  <!-- SUSCRIPCIONES -->
+  <div class="sheet-bg" id="subsBg" onclick="closeSubs()"></div>
+  <div class="sheet" id="subsSheet">
+    <div class="grab"></div>
+    <h3>Suscripciones</h3>
+    <p style="font-size:12.5px;color:var(--txt-2);margin:-8px 0 16px;line-height:1.5">Te avisa 3 días y 1 día antes. El día del cobro decides si se debitó o no lo usaste este mes.</p>
+    <div id="subsList" style="max-height:38vh;overflow-y:auto;margin-bottom:16px"></div>
+    <div class="sub-form" id="subForm">
+      <div class="ch" style="margin-bottom:12px"><div class="ct" id="subFormTitle">Agregar suscripción</div>
+        <button class="igv-chip" id="subCancelEdit" style="display:none" onclick="resetSubForm()">cancelar</button></div>
+      <div class="field"><label>Nombre</label><input id="sNm" type="text" placeholder="Ej. Adobe Creative Cloud" /></div>
+      <div class="row2">
+        <div class="field big" style="flex:1.4"><label>Monto</label>
+          <div class="amt-in">
+            <div class="ccy-mini"><button class="on" id="sUSD" onclick="setSubCur('USD')">$</button><button id="sPEN" onclick="setSubCur('PEN')">S/</button></div>
+            <input id="sAmt" type="number" inputmode="decimal" placeholder="0" />
+          </div>
+        </div>
+        <div class="field"><label>Día del mes</label><input id="sDay" type="number" inputmode="numeric" min="1" max="31" placeholder="5" /></div>
+      </div>
+      <button class="save" id="subSave" onclick="saveSub()">Agregar suscripción</button>
+    </div>
+  </div>
+
   <div class="toast" id="toast"></div>
 
   <!-- ACTIVIDAD -->
@@ -540,7 +590,7 @@ const state = {
   // Saldo real por cuenta de banco (USD). No se edita a mano: cambia con cada movimiento.
   accounts:{'Nicolás':1722.24, 'Franco':1589.58, 'Empresa':0},
   // Categorías sugeridas para gastos (solo nombres; el gasto real se calcula de los movimientos)
-  catNames:['Software / Render','Freelance 3D','Equipos','Operación','Marketing','Impuestos','Otros'],
+  catNames:['Software / Render','Suscripciones','Freelance 3D','Equipos','Operación','Marketing','Impuestos','Otros'],
   // Cobros recurrentes (suscripciones) — avisan 3 días y 1 día antes. Vacío: agrégalos tú.
   recurring:[],
   // Proyectos y movimientos: arrancan vacíos, son tus datos reales.
@@ -658,6 +708,8 @@ function render(){
 
     ${accountsHTML()}
 
+    ${subsCardHTML()}
+
     ${state.inflow.some(v=>v)||state.outflow.some(v=>v)?`
     <div class="card">
       <div class="ch"><div class="ct">Flujo · últimos 6 meses</div><div class="cs">Ingreso vs. gasto</div></div>
@@ -687,28 +739,42 @@ function render(){
   `;
 
   // MOVIMIENTOS
+  const q=movSearch.trim().toLowerCase();
+  const fil=state.tx.filter(x=>{
+    if(movFilter==='Ingresos' && x.t!=='in') return false;
+    if(movFilter==='Gastos' && x.t!=='out') return false;
+    if(movFilter==='Por cobrar' && !(x.t==='in' && x.status==='pendiente' && !x.voided)) return false;
+    if(movFilter==='Anulados' && !x.voided) return false;
+    if(q && !((x.desc||'').toLowerCase().includes(q) || (x.proj||'').toLowerCase().includes(q) || (x.paidFrom||'').toLowerCase().includes(q))) return false;
+    return true;
+  });
   const groups={};
-  state.tx.forEach(x=>{(groups[x.date]=groups[x.date]||[]).push(x)});
+  fil.forEach(x=>{(groups[x.date]=groups[x.date]||[]).push(x)});
+  const FILTERS=['Todos','Ingresos','Gastos','Por cobrar','Anulados'];
   document.getElementById('p-mov').innerHTML=`
-    <div class="hero" style="margin-bottom:18px">
+    <div class="hero" style="margin-bottom:16px">
       <div class="lbl">Movimientos</div>
       <div class="bal serif" style="font-size:42px"><span class="cur">${sym()}</span>${dispNum(t.net)}</div>
     </div>
     ${state.tx.length?`
+    <div class="search-wrap">
+      <span class="si">⌕</span>
+      <input id="movSearch" class="search" type="text" placeholder="Buscar concepto, cliente, cuenta…" value="${movSearch.replace(/"/g,'&quot;')}" oninput="onSearch(this.value)" />
+      ${movSearch?`<button class="sx" onclick="onSearch('')">✕</button>`:''}
+    </div>
     <div class="sec-h2">
       <div class="filters">
-        <button class="on">Todos</button><button>Ingresos</button><button>Gastos</button><button>Por cobrar</button>
+        ${FILTERS.map(f=>`<button class="${movFilter===f?'on':''}" onclick="setFilter('${f}')">${f}</button>`).join('')}
       </div>
       <button class="edit-tg ${editMode?'on':''}" onclick="toggleEdit()">${editMode?'Listo':'Editar'}</button>
     </div>
-    ${Object.keys(groups).map(d=>`
+    ${fil.length ? Object.keys(groups).map(d=>`
       <div class="day-h">${dateLabel(d)}</div>
       ${groups[d].map(txHTML).join('')}
-    `).join('')}`
+    `).join('') : emptyState('Sin resultados','No hay movimientos con ese filtro o búsqueda.')}`
     : emptyState('Aún no hay movimientos','Toca el botón + abajo para registrar tu primer ingreso o gasto del estudio.')}
   `;
-  document.querySelectorAll('.filters button').forEach(b=>b.onclick=()=>{
-    document.querySelectorAll('.filters button').forEach(x=>x.classList.remove('on'));b.classList.add('on');});
+  const si=document.getElementById('movSearch'); if(si && document.activeElement!==si && movSearch){ si.focus(); si.setSelectionRange(si.value.length,si.value.length); }
 
   // PROYECTOS
   const porCobrar=state.projects.reduce((a,p)=>a+(p.total-p.cobrado),0);
@@ -801,22 +867,124 @@ function accountsHTML(){
 function daysUntil(day){ const d=day-state.todayDay; return d>=0 ? d : d+30; }
 function whenLabel(n){ return n===0?'Hoy':n===1?'Mañana':`En ${n} días`; }
 function remindersHTML(){
-  const up=state.recurring.map(r=>({...r,d:daysUntil(r.day)}))
-    .filter(r=>r.d<=3).sort((a,b)=>a.d-b.d);
+  const up=state.recurring.filter(r=>r.active!==false && r.thisMonth!=='paid' && r.thisMonth!=='skipped')
+    .map(r=>({...r,d:daysUntil(r.day)})).filter(r=>r.d<=3).sort((a,b)=>a.d-b.d);
   if(!up.length) return '';
   return `<div class="alerts">
     <div class="alerts-h">Por pagar pronto <span class="cnt">${up.length}</span></div>
-    ${up.map(r=>{const osym=r.cur==='USD'?'$':'S/ ';return `
-      <div class="alert ${r.d<=1?'soon':''}">
+    ${up.map(r=>{const osym=r.cur==='USD'?'$':'S/ ';
+      const due=r.d===0;
+      return `<div class="alert ${r.d<=1?'soon':''}">
         <div class="bell">🔔</div>
         <div class="mid"><div class="nm">${r.nm}</div><div class="sub">Suscripción · se cobra el ${r.day}</div></div>
         <div class="when">${whenLabel(r.d)}<b>${osym}${r.amt}</b></div>
-      </div>`;}).join('')}
+      </div>${due?`<div class="alert-act">
+        <button class="aa pay" onclick="paySub('${r.id}')">Se debitó ✓</button>
+        <button class="aa skip" onclick="skipSub('${r.id}')">No este mes</button>
+      </div>`:''}`;}).join('')}
   </div>`;
+}
+function subsCardHTML(){
+  const act=state.recurring.filter(r=>r.active!==false);
+  const next=act.map(r=>({...r,d:daysUntil(r.day)})).sort((a,b)=>a.d-b.d)[0];
+  const sub = act.length ? `${act.length} activa${act.length>1?'s':''}${next?` · próxima: ${next.nm} ${whenLabel(daysUntil(next.day)).toLowerCase()}`:''}` : 'Ninguna todavía — agrega Adobe, Octane, etc.';
+  return `<div class="card subs-card" onclick="openSubs()" style="cursor:pointer">
+    <div class="ch"><div class="ct">Suscripciones</div><div class="cs">gestionar ›</div></div>
+    <div style="font-size:13px;color:var(--txt-2);line-height:1.4">${sub}</div>
+  </div>`;
+}
+/* ----- gestión de suscripciones ----- */
+let subCur='USD', subEditId=null;
+function setSubCur(c){ subCur=c;
+  document.getElementById('sUSD').classList.toggle('on',c==='USD');
+  document.getElementById('sPEN').classList.toggle('on',c==='PEN'); }
+function subStatusChip(s){
+  if(s.active===false) return '<span class="sub-chip off">Pausada</span>';
+  if(s.thisMonth==='paid') return '<span class="sub-chip ok">Pagada este mes</span>';
+  if(s.thisMonth==='skipped') return '<span class="sub-chip off">Saltada este mes</span>';
+  return `<span class="sub-chip">día ${s.day}</span>`;
+}
+function renderSubsList(){
+  const list=document.getElementById('subsList');
+  list.innerHTML = state.recurring.length ? state.recurring.map(s=>{
+    const osym=s.cur==='USD'?'$':'S/ ';
+    return `<div class="sub-row ${s.active===false?'paused':''}">
+      <div class="mid" onclick="editSub('${s.id}')" style="cursor:pointer">
+        <div class="nm">${s.nm} ${subStatusChip(s)}</div>
+        <div class="sub">${osym}${s.amt} · se cobra el ${s.day}</div>
+      </div>
+      <button class="sub-toggle" onclick="toggleSub('${s.id}')">${s.active===false?'Reactivar':'Pausar'}</button>
+    </div>`;}).join('') : '<div style="font-size:13px;color:var(--txt-3);padding:6px 0 14px">Aún no agregas suscripciones. Llena el formulario de abajo.</div>';
+}
+function openSubs(){ resetSubForm(); renderSubsList();
+  document.getElementById('subsBg').classList.add('open');
+  document.getElementById('subsSheet').classList.add('open'); }
+function closeSubs(){ document.getElementById('subsBg').classList.remove('open');
+  document.getElementById('subsSheet').classList.remove('open'); }
+function resetSubForm(){ subEditId=null; setSubCur('USD');
+  document.getElementById('sNm').value=''; document.getElementById('sAmt').value=''; document.getElementById('sDay').value='';
+  document.getElementById('subFormTitle').textContent='Agregar suscripción';
+  document.getElementById('subSave').textContent='Agregar suscripción';
+  document.getElementById('subCancelEdit').style.display='none'; }
+function editSub(id){ const s=state.recurring.find(r=>String(r.id)===String(id)); if(!s) return;
+  subEditId=id; setSubCur(s.cur);
+  document.getElementById('sNm').value=s.nm; document.getElementById('sAmt').value=s.amt; document.getElementById('sDay').value=s.day;
+  document.getElementById('subFormTitle').textContent='Editar suscripción';
+  document.getElementById('subSave').textContent='Guardar cambios';
+  document.getElementById('subCancelEdit').style.display='inline-block';
+  document.getElementById('subsSheet').scrollTo({top:document.getElementById('subsSheet').scrollHeight,behavior:'smooth'}); }
+async function saveSub(){
+  const nm=document.getElementById('sNm').value.trim();
+  const amt=parseFloat(document.getElementById('sAmt').value||0);
+  const day=Math.min(31,Math.max(1,parseInt(document.getElementById('sDay').value||1)));
+  if(!nm || !amt){ document.getElementById('sNm').focus(); return; }
+  try{
+    if(subEditId){
+      const s=state.recurring.find(r=>String(r.id)===String(subEditId));
+      Object.assign(s,{nm,amt,cur:subCur,day});
+      await Store.updateRecurring(subEditId,{nm,amt,cur:subCur,day});
+      logAct('editó una suscripción', `${nm} · ${subCur==='USD'?'$':'S/ '}${amt} · día ${day}`);
+    }else{
+      const row={nm,amt,cur:subCur,day,ic:'◇',active:true,thisMonth:null};
+      const saved=await Store.addRecurring(row); state.recurring.push(saved);
+      logAct('agregó una suscripción', `${nm} · ${subCur==='USD'?'$':'S/ '}${amt} · día ${day}`);
+    }
+    await Store.persistLocal(SEED());
+  }catch(e){ alert('No se pudo guardar: '+e.message); return; }
+  resetSubForm(); renderSubsList(); render();
+}
+async function toggleSub(id){
+  const s=state.recurring.find(r=>String(r.id)===String(id)); if(!s) return;
+  s.active = s.active===false;
+  try{ await Store.updateRecurring(id,{active:s.active}); await Store.persistLocal(SEED());
+    logAct(s.active?'reactivó una suscripción':'pausó una suscripción', s.nm);
+  }catch(e){ alert('Error: '+e.message); }
+  renderSubsList(); render();
+}
+async function skipSub(id){
+  const s=state.recurring.find(r=>String(r.id)===String(id)); if(!s) return;
+  s.thisMonth='skipped';
+  try{ await Store.updateRecurring(id,{thisMonth:'skipped'}); await Store.persistLocal(SEED());
+    logAct('marcó suscripción como no usada este mes', s.nm);
+  }catch(e){ alert('Error: '+e.message); }
+  render();
+}
+let pendingSubPay=null;
+function paySub(id){
+  const s=state.recurring.find(r=>String(r.id)===String(id)); if(!s) return;
+  pendingSubPay=id;
+  setType('out'); openSheet();
+  document.getElementById('fAmt').value=s.amt;
+  setAddCur(s.cur);
+  document.getElementById('fDesc').value=s.nm+' (suscripción)';
+  const cat=document.getElementById('fProj'); if([...cat.options].some(o=>o.value==='Suscripciones')) cat.value='Suscripciones';
 }
 function toggleIGV(){ state.igv.on=!state.igv.on; render(); Store.saveSettings({igv:state.igv}).catch(()=>{}); }
 let editMode=false;
 function toggleEdit(){ editMode=!editMode; render(); }
+let movFilter='Todos', movSearch='';
+function setFilter(f){ movFilter=f; render(); }
+function onSearch(v){ movSearch=v; render(); }
 async function voidTx(id){
   const x=state.tx.find(t=>String(t.id)===String(id));
   if(!x || x.voided) return;
@@ -1012,7 +1180,7 @@ function openSheet(){
   document.getElementById('sheetBg').classList.add('open');
   document.getElementById('sheet').classList.add('open');
 }
-function closeSheet(){document.getElementById('sheetBg').classList.remove('open');document.getElementById('sheet').classList.remove('open');}
+function closeSheet(){document.getElementById('sheetBg').classList.remove('open');document.getElementById('sheet').classList.remove('open');pendingSubPay=null;}
 function setType(t){
   txType=t;
   document.querySelectorAll('#seg button').forEach(b=>b.className='');
@@ -1047,6 +1215,12 @@ async function saveTx(){
     Store.saveSettings({accounts:state.accounts}).catch(()=>{});
     logAct(txType==='in'?'agregó un ingreso':'agregó un gasto',
       `${desc} · ${cur==='USD'?'$':'S/ '}${amt}${cuenta&&cuenta!=='Empresa'?' → '+cuenta:''}`);
+    if(pendingSubPay){
+      const s=state.recurring.find(r=>String(r.id)===String(pendingSubPay));
+      if(s){ s.thisMonth='paid'; await Store.updateRecurring(s.id,{thisMonth:'paid'}); await Store.persistLocal(SEED());
+        logAct('confirmó pago de suscripción', s.nm); }
+      pendingSubPay=null;
+    }
   }catch(e){ btn.textContent=lbl; alert('No se pudo guardar: '+e.message); return; }
   btn.textContent=lbl;
   document.getElementById('fAmt').value='';document.getElementById('fDesc').value='';

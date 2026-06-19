@@ -4,7 +4,7 @@ window.Store = (function () {
   const cfg = window.VIZIA_CONFIG || {};
   const CLOUD = !!(cfg.url && cfg.anonKey && /^https?:\/\//.test(cfg.url));
   const LS = 'vizia_fin_v1';
-  const DATA_VERSION = 4; // súbelo cuando cambie la estructura → limpia datos viejos guardados
+  const DATA_VERSION = 5; // súbelo cuando cambie la estructura → limpia datos viejos guardados
   let sb = null;
 
   function init() {
@@ -53,7 +53,7 @@ window.Store = (function () {
       projects: (p.data || []).map(r => ({ id: r.id, nm: r.nm, cl: r.cl, total: +r.total, cobrado: +r.cobrado, status: r.status })),
       tx: (tx.data || []).map(r => ({ id: r.id, t: r.t, amt: +r.amt, cur: r.cur, origAmt: r.orig_amt != null ? +r.orig_amt : Math.abs(+r.amt), desc: r.descr, proj: r.proj, paidFrom: r.paid_from, status: r.status, voided: !!r.voided, voidedBy: r.voided_by, ic: r.ic, date: r.date })),
       team: (tm.data || []).map(r => ({ nm: r.nm, role: r.role, type: r.type, share: +r.share, pay: +r.pay, av: r.av })),
-      recurring: (rc.data || []).map(r => ({ nm: r.nm, amt: +r.amt, cur: r.cur, day: r.day, ic: r.ic })),
+      recurring: (rc.data || []).map(r => ({ id: r.id, nm: r.nm, amt: +r.amt, cur: r.cur, day: r.day, ic: r.ic, active: r.active !== false, thisMonth: r.this_month || null })),
       settings: {
         display: s.display || seed.settings.display,
         rate: s.rate != null ? +s.rate : seed.settings.rate,
@@ -94,6 +94,33 @@ window.Store = (function () {
     const { data, error } = await sb.from('projects').insert(ins).select().single();
     if (error) throw new Error(error.message);
     return { id: data.id, nm: data.nm, cl: data.cl, total: +data.total, cobrado: +data.cobrado, status: data.status };
+  }
+
+  async function addRecurring(row) {
+    if (!CLOUD) {
+      const d = lsRead() || {}; d.recurring = d.recurring || [];
+      row.id = row.id || ('r' + Date.now());
+      d.recurring.push(row); lsWrite(d); return row;
+    }
+    const ins = { nm: row.nm, amt: row.amt, cur: row.cur, day: row.day, ic: row.ic, active: row.active !== false, this_month: row.thisMonth || null };
+    const { data, error } = await sb.from('recurring').insert(ins).select().single();
+    if (error) throw new Error(error.message);
+    return { id: data.id, nm: data.nm, amt: +data.amt, cur: data.cur, day: data.day, ic: data.ic, active: data.active !== false, thisMonth: data.this_month || null };
+  }
+
+  async function updateRecurring(id, patch) {
+    if (!CLOUD) {
+      const d = lsRead() || {}; (d.recurring || []).forEach(r => { if (String(r.id) === String(id)) Object.assign(r, patch); }); lsWrite(d); return;
+    }
+    const up = {};
+    if (patch.nm != null) up.nm = patch.nm;
+    if (patch.amt != null) up.amt = patch.amt;
+    if (patch.cur != null) up.cur = patch.cur;
+    if (patch.day != null) up.day = patch.day;
+    if (patch.active != null) up.active = patch.active;
+    if (patch.thisMonth !== undefined) up.this_month = patch.thisMonth;
+    const { error } = await sb.from('recurring').update(up).eq('id', id);
+    if (error) throw new Error(error.message);
   }
 
   async function logActivity(e) {
@@ -142,5 +169,5 @@ window.Store = (function () {
 
   function resetLocal() { localStorage.removeItem(LS); }
 
-  return { init, isCloud, signIn, signOut, fetchAll, addTx, addProject, voidTx, logActivity, saveSettings, persistLocal, onChange, resetLocal };
+  return { init, isCloud, signIn, signOut, fetchAll, addTx, addProject, voidTx, addRecurring, updateRecurring, logActivity, saveSettings, persistLocal, onChange, resetLocal };
 })();

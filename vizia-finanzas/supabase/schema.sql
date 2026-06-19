@@ -45,12 +45,14 @@ create table if not exists team (
 );
 
 create table if not exists recurring (
-  id  uuid primary key default uuid_generate_v4(),
-  nm  text not null,
-  amt numeric default 0,
-  cur text default 'USD',
-  day int default 1,                 -- día del mes en que se cobra
-  ic  text default '◇'
+  id         uuid primary key default uuid_generate_v4(),
+  nm         text not null,
+  amt        numeric default 0,
+  cur        text default 'USD',
+  day        int default 1,             -- día del mes en que se cobra
+  ic         text default '◇',
+  active     boolean default true,      -- pausada / activa
+  this_month text                       -- null | 'paid' | 'skipped' (estado del mes en curso)
 );
 
 create table if not exists activity (
