@@ -1,17 +1,10 @@
-// VIZIA Finanzas — configuración del backend
-// ───────────────────────────────────────────────────────────────
-// Mientras url y anonKey estén vacíos, la app guarda los datos en
-// ESTE dispositivo (modo local). Para que tú y Franco compartan todo
-// en vivo, crea un proyecto gratis en https://supabase.com y pega aquí:
-//   1) Project Settings → API → Project URL        →  url
-//   2) Project Settings → API → anon public key     →  anonKey
-//   3) El correo con el que crearás cada usuario     →  email
-// (Pasos detallados en SETUP.md)
+// VIZIA Finanzas — configuración del backend (Supabase)
+// Datos compartidos en vivo entre Nicolás y Franco. Cada uno entra con su cuenta.
 window.VIZIA_CONFIG = {
-  url: '',          // ej. https://abcdefgh.supabase.co
-  anonKey: '',      // ej. eyJhbGciOiJIUzI1NiIsInR5cCI6...
+  url: 'https://ftthfewqxoccwdxyorkq.supabase.co',
+  anonKey: 'sb_publishable_PhXSvbztZShLUGlgOSmZBA_SLP2Nqcb',
   users: [
-    { id: 'N', name: 'Nicolás',         email: '' },
-    { id: 'F', name: 'Franco Otiniano', email: '' },
+    { id: 'N', name: 'Nicolás', email: 'nicolasmaravi7@gmail.com' },
+    { id: 'F', name: 'Franco',  email: 'franco_o15@hotmail.com' },
   ],
 };

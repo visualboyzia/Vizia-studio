@@ -26,6 +26,29 @@ window.Store = (function () {
   }
   async function signOut() { if (CLOUD && sb) await sb.auth.signOut(); }
 
+  // Detecta si llegamos desde un link de invitación / recuperación (Franco crea su clave)
+  async function getInviteSession() {
+    if (!CLOUD || !sb) return null;
+    const hash = window.location.hash || '';
+    if (!/type=(invite|recovery|signup)/.test(hash)) return null;
+    for (let i = 0; i < 12; i++) {
+      const { data } = await sb.auth.getSession();
+      if (data && data.session) return data.session;
+      await new Promise(r => setTimeout(r, 150));
+    }
+    return null;
+  }
+  async function setPassword(pw) {
+    if (!CLOUD || !sb) return { ok: false, error: 'Sin conexión' };
+    const { error } = await sb.auth.updateUser({ password: pw });
+    return error ? { ok: false, error: error.message } : { ok: true };
+  }
+  async function currentEmail() {
+    if (!CLOUD || !sb) return null;
+    const { data } = await sb.auth.getUser();
+    return data && data.user ? data.user.email : null;
+  }
+
   // ---------- LOCAL helpers ----------
   function lsRead() { try { return JSON.parse(localStorage.getItem(LS)); } catch (e) { return null; } }
   function lsWrite(d) { d.__v = DATA_VERSION; localStorage.setItem(LS, JSON.stringify(d)); }
@@ -214,5 +237,5 @@ window.Store = (function () {
 
   function resetLocal() { localStorage.removeItem(LS); }
 
-  return { init, isCloud, signIn, signOut, fetchAll, addTx, addProject, updateTx, updateProject, voidTx, addRecurring, updateRecurring, updateTeam, logActivity, saveSettings, persistLocal, onChange, resetLocal };
+  return { init, isCloud, signIn, signOut, getInviteSession, setPassword, currentEmail, fetchAll, addTx, addProject, updateTx, updateProject, voidTx, addRecurring, updateRecurring, updateTeam, logActivity, saveSettings, persistLocal, onChange, resetLocal };
 })();

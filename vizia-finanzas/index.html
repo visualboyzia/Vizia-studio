@@ -33,12 +33,12 @@ button{font-family:inherit; cursor:pointer; border:none; background:none; color:
 .app{max-width:480px; margin:0 auto; min-height:100dvh; position:relative; overflow:hidden}
 
 /* ---------- LOGIN ---------- */
-#login{
+#login,#setpw{
   position:fixed; inset:0; z-index:100; background:var(--bg);
   display:flex; flex-direction:column; justify-content:center; align-items:center;
   padding:0 32px; text-align:center; transition:opacity .6s ease, transform .6s ease;
 }
-#login.hidden{opacity:0; transform:scale(1.04); pointer-events:none}
+#login.hidden,#setpw.hidden{opacity:0; transform:scale(1.04); pointer-events:none}
 .brand-mark{
   font-size:13px; letter-spacing:.42em; font-weight:500; color:var(--txt-2);
   text-transform:uppercase; margin-bottom:26px; padding-left:.42em;
@@ -445,6 +445,18 @@ button{font-family:inherit; cursor:pointer; border:none; background:none; color:
     <div class="login-foot" id="loginFoot">Protegido · Face ID</div>
   </section>
 
+  <!-- CREAR CONTRASEÑA (invitación) -->
+  <section id="setpw" style="display:none">
+    <div class="brand-mark">VIZIA STUDIO</div>
+    <h1 class="login-title serif">Crea tu <em>contraseña.</em></h1>
+    <p class="login-sub" id="setpwWho">Bienvenido. Elige tu contraseña para entrar al estudio.</p>
+    <input id="pw1" class="login-pwd" style="display:block" type="password" placeholder="Nueva contraseña" />
+    <input id="pw2" class="login-pwd" style="display:block" type="password" placeholder="Repite la contraseña" onkeydown="if(event.key==='Enter')savePassword()" />
+    <div id="setpwErr" class="login-err"></div>
+    <button class="enter" id="setpwBtn" onclick="savePassword()">Guardar y entrar</button>
+    <div class="login-foot">Solo tú conoces esta contraseña</div>
+  </section>
+
   <!-- SHELL -->
   <div id="shell">
     <div class="scroll" id="scroll">
@@ -670,9 +682,14 @@ async function enterApp(){
     const pwd=document.getElementById('loginPwd').value;
     const res=await Store.signIn(state.uid, pwd);
     if(!res.ok){ err.textContent=res.error||'No se pudo iniciar sesión'; btn.removeAttribute('disabled'); return; }
-    applyData(await Store.fetchAll(SEED()));
   }catch(e){ err.textContent='Error: '+e.message; btn.removeAttribute('disabled'); return; }
+  await launchApp();
+  btn.removeAttribute('disabled');
+}
+async function launchApp(){
+  try{ applyData(await Store.fetchAll(SEED())); }catch(e){ alert('Error cargando datos: '+e.message); return; }
   document.getElementById('login').classList.add('hidden');
+  const sp=document.getElementById('setpw'); if(sp) sp.classList.add('hidden');
   const sh=document.getElementById('shell');
   document.getElementById('userName').textContent=state.user;
   document.getElementById('userAv').textContent=state.uav;
@@ -686,6 +703,22 @@ async function enterApp(){
     const top=state.activity[0];
     if(top && top.id!==prevTop && top.who!==state.user) toast(`<b>${top.who}</b> ${top.action}`);
   }catch(e){} });
+}
+function userFromEmail(email){
+  const u=(window.VIZIA_CONFIG.users||[]).find(x=>x.email && x.email.toLowerCase()===(email||'').toLowerCase());
+  if(u){ state.user=u.name; state.uid=u.id; state.uav=u.id; }
+}
+async function savePassword(){
+  const err=document.getElementById('setpwErr'); err.textContent='';
+  const p1=document.getElementById('pw1').value, p2=document.getElementById('pw2').value;
+  if(p1.length<6){ err.textContent='La contraseña debe tener al menos 6 caracteres'; return; }
+  if(p1!==p2){ err.textContent='Las contraseñas no coinciden'; return; }
+  const btn=document.getElementById('setpwBtn'); btn.setAttribute('disabled',''); btn.textContent='Guardando…';
+  const res=await Store.setPassword(p1);
+  if(!res.ok){ err.textContent=res.error||'No se pudo guardar'; btn.removeAttribute('disabled'); btn.textContent='Guardar y entrar'; return; }
+  const email=await Store.currentEmail(); userFromEmail(email);
+  history.replaceState(null,'',location.pathname); // limpia el token del link
+  await launchApp();
 }
 
 /* ---------------- NAV ---------------- */
@@ -1270,11 +1303,22 @@ async function saveProj(){
 }
 
 /* ---------------- BOOTSTRAP ---------------- */
-(function boot(){
+(async function boot(){
   const cloud = Store.init();
   if(cloud){
     const p=document.getElementById('loginPwd'); if(p) p.style.display='block';
     const f=document.getElementById('loginFoot'); if(f) f.textContent='Protegido · nube compartida';
+    // ¿Llegó desde un link de invitación? → mostrar "Crea tu contraseña"
+    try{
+      const sess=await Store.getInviteSession();
+      if(sess){
+        const email=(sess.user&&sess.user.email)||await Store.currentEmail();
+        userFromEmail(email);
+        document.getElementById('setpwWho').textContent=`Hola ${state.user||''}. Elige tu contraseña para entrar al estudio.`;
+        document.getElementById('login').classList.add('hidden');
+        document.getElementById('setpw').style.display='flex';
+      }
+    }catch(e){}
   }
 })();
 function setAddCur(c){
